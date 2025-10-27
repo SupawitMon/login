@@ -79,7 +79,7 @@ function nf($n) { return number_format((float)$n, 2); }
 <div class="container-fluid">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h2 class="mb-0">ภาพรวมยอดขาย</h2>
-    <span class="sub">ข้อมูลจากฐานข้อมูล MySQL (s67160315)</span>
+    <span class="sub">ข้อมูลจากฐานข้อมูล MySQL (s67160372)</span>
   </div>
 
   <!-- KPI -->
