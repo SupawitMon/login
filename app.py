@@ -1,180 +1,216 @@
 import streamlit as st
-import base64
-from pathlib import Path
 import time
 import random
 
+# ===============================
+# PAGE CONFIG
+# ===============================
 st.set_page_config(
     page_title="Stone AI Inspection",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_icon="🪨",
+    layout="wide"
 )
 
-# =========================
-# 🔥 BACKGROUND SYSTEM
-# =========================
-
-def set_bg_image(image_file):
-    with open(image_file, "rb") as img:
-        encoded = base64.b64encode(img.read()).decode()
-
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background: url("data:image/png;base64,{encoded}");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-def set_gradient_bg():
-    st.markdown("""
-    <style>
-    .stApp {
-        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-        background-size: 400% 400%;
-        animation: gradient 15s ease infinite;
-    }
-
-    @keyframes gradient {
-        0% {background-position: 0% 50%;}
-        50% {background-position: 100% 50%;}
-        100% {background-position: 0% 50%;}
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-
-# 🔁 เปลี่ยนโหมดพื้นหลัง
-bg_mode = st.sidebar.selectbox("🎨 Background Mode", ["Animated Gradient", "Image"])
-
-if bg_mode == "Animated Gradient":
-    set_gradient_bg()
-else:
-    set_bg_image("background.jpg")  # ใส่ไฟล์เอง
-
-
-# =========================
-# 💎 GLOBAL STYLES
-# =========================
-
+# ===============================
+# CUSTOM CSS (ULTRA PREMIUM UI)
+# ===============================
 st.markdown("""
 <style>
 
-/* Glass Card */
-.glass-card {
-    background: rgba(255,255,255,0.08);
-    backdrop-filter: blur(12px);
-    border-radius: 20px;
-    padding: 30px;
-    box-shadow: 0 0 40px rgba(0,255,255,0.2);
-}
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Inter:wght@400;500;600&display=swap');
 
-/* Title */
-.main-title {
-    text-align: center;
-    font-size: 48px;
-    font-weight: 700;
-    color: #ffffff;
-    letter-spacing: 2px;
-}
-
-.ai-text {
-    color: #00f5ff;
-}
-
-/* Glow Button */
-.stButton>button {
-    background: linear-gradient(90deg, #00f5ff, #00ff95);
-    color: black;
-    border-radius: 12px;
-    font-weight: bold;
-    padding: 12px 25px;
-    box-shadow: 0 0 20px #00f5ff;
-    transition: 0.3s;
-}
-
-.stButton>button:hover {
-    box-shadow: 0 0 35px #00ff95;
-    transform: scale(1.05);
-}
-
-/* Result Circle */
-.result-circle {
-    border-radius: 50%;
-    padding: 25px;
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
+html, body, [class*="css"]  {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(-45deg, #0b1423, #0f1b2e, #0b1423, #121c30);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
     color: white;
-    background: radial-gradient(circle, #00ff95 0%, #008b8b 100%);
-    box-shadow: 0 0 40px #00ff95;
-    width: 200px;
-    margin: auto;
+}
+
+@keyframes gradientBG {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+
+.glass {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 0 40px rgba(0,255,255,0.08);
+}
+
+.title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 48px;
+    text-align:center;
+    background: linear-gradient(270deg,#00bfff,#00ffcc,#8b5cf6,#00bfff);
+    background-size:600% 600%;
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation: flow 6s ease infinite;
+}
+
+@keyframes flow {
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+}
+
+.subtitle {
+    text-align:center;
+    opacity:0.8;
+    margin-bottom:40px;
+}
+
+.metric-card {
+    background: rgba(255,255,255,0.05);
+    padding:25px;
+    border-radius:15px;
+    text-align:center;
+    transition:0.3s;
+    border:1px solid rgba(255,255,255,0.08);
+}
+
+.metric-card:hover{
+    transform: translateY(-8px);
+    box-shadow: 0 10px 30px rgba(0,255,255,0.15);
+}
+
+.metric-label {
+    font-size:14px;
+    opacity:0.6;
+}
+
+.metric-value {
+    font-size:28px;
+    font-weight:600;
+}
+
+.stButton>button {
+    background: linear-gradient(90deg,#00bfff,#00ffcc);
+    color:white;
+    border:none;
+    padding:12px 30px;
+    border-radius:10px;
+    font-weight:600;
+    transition:0.3s;
+}
+
+.stButton>button:hover{
+    transform:scale(1.05);
+    box-shadow:0 0 20px #00ffcc;
+}
+
+.progress-bar {
+    height:12px;
+    border-radius:20px;
+    background:rgba(255,255,255,0.1);
+    overflow:hidden;
+    margin-top:20px;
+}
+
+.progress-fill {
+    height:100%;
+    border-radius:20px;
+    transition: width 1.5s ease;
+}
+
+.success { background:linear-gradient(90deg,#00e676,#00ffcc); }
+.danger { background:linear-gradient(90deg,#ff5252,#ff1744); }
+
+.footer {
+    text-align:center;
+    margin-top:60px;
+    opacity:0.5;
+    font-size:13px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
+# ===============================
+# HEADER
+# ===============================
+st.markdown('<div class="title">Stone Defect Detection AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Advanced Vision Inspection System</div>', unsafe_allow_html=True)
 
-# =========================
-# 🚀 HEADER
-# =========================
+# ===============================
+# MAIN GLASS CONTAINER
+# ===============================
+with st.container():
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-st.markdown(
-    '<div class="main-title">Stone Defect Detection <span class="ai-text">AI</span></div>',
-    unsafe_allow_html=True
-)
+    uploaded = st.file_uploader("Upload Stone Image", type=["jpg","png","jpeg"])
 
-st.markdown("<br>", unsafe_allow_html=True)
+    if uploaded:
 
-# =========================
-# 📤 UPLOAD
-# =========================
+        col1, col2 = st.columns([1,1])
 
-uploaded_file = st.file_uploader("Upload Stone Image", type=["jpg", "png"])
+        with col1:
+            st.image(uploaded, caption="Uploaded Image", use_column_width=True)
 
-if uploaded_file:
-    col1, col2 = st.columns(2)
+        with col2:
+            st.write("### 🔍 AI Processing...")
+            progress = st.progress(0)
 
-    with col1:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.subheader("Original Image")
-        st.image(uploaded_file, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+            for i in range(100):
+                time.sleep(0.01)
+                progress.progress(i+1)
 
-    with col2:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.subheader("AI Analysis")
+            # ====== Fake AI result (replace with your model) ======
+            crack = random.choice([True, False])
+            confidence = round(random.uniform(88,99.9),2)
+            crack_count = random.randint(0,5)
+            processing_time = round(random.uniform(0.4,1.2),2)
 
-        if st.button("🔍 Analyze Image"):
-            with st.spinner("AI Processing..."):
-                time.sleep(2)
+            st.markdown("##")
 
-                confidence = round(random.uniform(65, 95), 2)
+            if crack:
+                st.error(f"❌ Crack Detected ({confidence}%)")
+                bar_class = "danger"
+            else:
+                st.success(f"✅ No Crack Detected ({confidence}%)")
+                bar_class = "success"
 
-                if confidence > 80:
-                    result_text = "No Crack Detected"
-                else:
-                    result_text = "Crack Found"
+            st.markdown(f"""
+            <div class="progress-bar">
+                <div class="progress-fill {bar_class}" style="width:{confidence}%"></div>
+            </div>
+            """, unsafe_allow_html=True)
 
-                st.markdown(
-                    f"""
-                    <div class="result-circle">
-                        {result_text}<br>
-                        {confidence}%
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+        # ===== METRIC DASHBOARD =====
+        st.markdown("##")
+        colA, colB, colC = st.columns(3)
 
-                st.progress(confidence/100)
+        with colA:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">Crack Count</div>
+                <div class="metric-value">{crack_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        with colB:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">AI Confidence</div>
+                <div class="metric-value">{confidence}%</div>
+            </div>
+            """, unsafe_allow_html=True)
 
+        with colC:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">Processing Time</div>
+                <div class="metric-value">{processing_time}s</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ===============================
+# FOOTER
+# ===============================
+st.markdown('<div class="footer">© 2026 Stone AI Inspection | AI Vision Technology</div>', unsafe_allow_html=True)
