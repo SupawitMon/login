@@ -14,154 +14,170 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from torchvision import models
 from PIL import Image
-import numpy as np
 import time
 from huggingface_hub import hf_hub_download
 
 # ==========================
-# AI SETTINGS (โหดจริง)
-# ==========================
-CRACK_THRESHOLD = 0.55     # crack แรงพอ = ติดทันที
-HIT_THRESHOLD   = 0.42     # crack เบาแต่หลายจุด
-HIT_K           = 2        # ต้องเจอ ≥2 crop
-
-# ==========================
-# LOAD MODEL
+# DOWNLOAD MODEL
 # ==========================
 @st.cache_resource
-def load_model():
-    model_path = hf_hub_download(
+def get_model_path():
+    return hf_hub_download(
         repo_id="Mon2948/best_model",
         filename="best_model.pth"
     )
 
-    ckpt = torch.load(model_path, map_location="cpu")
+MODEL_PATH = get_model_path()
+
+# ==========================
+# LOAD MODEL + CLASS MAP
+# ==========================
+@st.cache_resource
+def load_model():
+    checkpoint = torch.load(MODEL_PATH, map_location="cpu")
 
     model = models.efficientnet_b3(weights=None)
-    model.classifier[1] = nn.Linear(
-        model.classifier[1].in_features, 2
-    )
-    model.load_state_dict(ckpt["state_dict"])
+    model.classifier[1] = nn.Linear(model.classifier[1].in_features, 2)
+    model.load_state_dict(checkpoint["state_dict"])
     model.eval()
 
-    class_to_idx = ckpt["class_to_idx"]
+    class_to_idx = checkpoint["class_to_idx"]
     idx_to_class = {v: k for k, v in class_to_idx.items()}
 
-    crack_idx = class_to_idx["Crack"]
+    return model, idx_to_class
 
-    return model, crack_idx
-
-model, CRACK_IDX = load_model()
+model, idx_to_class = load_model()
 
 # ==========================
 # TRANSFORM
 # ==========================
-base_tf = transforms.Compose([
-    transforms.Resize((340, 340)),
+transform = transforms.Compose([
+    transforms.Resize((300, 300)),
     transforms.ToTensor(),
     transforms.Normalize(
-        [0.485, 0.456, 0.406],
-        [0.229, 0.224, 0.225]
-    )
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    ),
 ])
 
-# ==========================
-# MULTI CROP
-# ==========================
-def multi_crop(img, size=300):
-    w, h = img.size
-    crops = [
-        img.crop((0, 0, size, size)),
-        img.crop((w-size, 0, w, size)),
-        img.crop((0, h-size, size, h)),
-        img.crop((w-size, h-size, w, h)),
-        img.crop(((w-size)//2, (h-size)//2,
-                  (w+size)//2, (h+size)//2))
-    ]
-    return crops
+# ===============================
+# CSS
+# ===============================
+st.markdown("""
+<style>
+html, body {
+    background: radial-gradient(circle at 20% 20%, #0f2027, #0b1423 60%);
+    color: white;
+}
+.title {
+    font-size: 48px;
+    text-align: center;
+    font-weight: 700;
+    background: linear-gradient(90deg,#00f5ff,#00ffcc,#8b5cf6);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+}
+.glass {
+    background: rgba(255,255,255,0.05);
+    padding: 40px;
+    border-radius: 25px;
+}
+.result-ring {
+    width:180px;
+    height:180px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    font-weight:bold;
+    margin:auto;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# ==========================
-# AI PREDICT (สมองหลัก)
-# ==========================
-def predict(image: Image.Image):
-    crops = multi_crop(image)
-    crack_scores = []
+# ===============================
+# HEADER
+# ===============================
+st.markdown('<div class="title">Stone Defect Detection AI</div>', unsafe_allow_html=True)
+st.markdown("<center>Industrial Vision Inspection System</center><br>", unsafe_allow_html=True)
 
-    with torch.no_grad():
-        for crop in crops:
-            x = base_tf(crop).unsqueeze(0)
-            out = model(x)
-            prob = torch.softmax(out, dim=1)[0][CRACK_IDX].item()
-            crack_scores.append(prob)
+# ===============================
+# MAIN
+# ===============================
+with st.container():
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-    crack_max = max(crack_scores)
-    hit_count = sum(p >= HIT_THRESHOLD for p in crack_scores)
+    uploaded = st.file_uploader("Upload Stone Image", type=["jpg", "png", "jpeg"])
 
-    is_crack = (
-        crack_max >= CRACK_THRESHOLD
-        or hit_count >= HIT_K
-    )
+    if uploaded:
+        image = Image.open(uploaded).convert("RGB")
+        col1, col2 = st.columns(2)
 
-    return is_crack, crack_max, crack_scores
+        with col1:
+            st.image(image, use_column_width=True)
 
-# ==========================
-# UI
-# ==========================
-st.markdown("<h1 style='text-align:center'>Stone Defect Detection AI</h1>",
-            unsafe_allow_html=True)
-st.markdown("<center>Industrial Vision Inspection</center><br>",
-            unsafe_allow_html=True)
+        with col2:
+            if st.button("Start AI Scan"):
 
-uploaded = st.file_uploader(
-    "Upload Stone Image",
-    type=["jpg", "png", "jpeg"]
-)
+                bar = st.progress(0)
+                for i in range(100):
+                    time.sleep(0.003)
+                    bar.progress(i + 1)
 
-if uploaded:
-    img = Image.open(uploaded).convert("RGB")
+                img = transform(image).unsqueeze(0)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.image(img, use_column_width=True)
+                with torch.no_grad():
+                    output = model(img)
+                    prob = torch.softmax(output, dim=1)[0]
 
-    with col2:
-        if st.button("🔥 START AI SCAN"):
-            bar = st.progress(0)
-            for i in range(100):
-                time.sleep(0.003)
-                bar.progress(i+1)
+                # ===== CLASS PROB =====
+                crack_idx = [k for k,v in idx_to_class.items() if v.lower() == "crack"][0]
+                good_idx  = [k for k,v in idx_to_class.items() if v.lower() != "crack"][0]
 
-            is_crack, crack_max, scores = predict(img)
+                crack_prob = prob[crack_idx].item()
+                good_prob  = prob[good_idx].item()
 
-            conf = round(crack_max * 100, 2)
-            color = "#ff3b3b" if is_crack else "#00ffcc"
+                # ===== INDUSTRIAL DECISION LOGIC =====
+                # โหด แต่ไม่มั่ว
+                if crack_prob >= 0.70:
+                    is_crack = True
+                elif crack_prob >= 0.60 and crack_prob > good_prob + 0.15:
+                    is_crack = True
+                else:
+                    is_crack = False
 
-            st.markdown(
-                f"""
-                <div style="
-                width:180px;height:180px;
-                border-radius:50%;
-                margin:auto;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                font-size:26px;
-                font-weight:bold;
+                confidence = crack_prob if is_crack else good_prob
+                confidence = round(confidence * 100, 2)
+                percent = int(confidence)
+
+                ring_color = "#ff3b3b" if is_crack else "#00ffcc"
+
+                ring_html = f"""
+                <div class="result-ring" style="
                 background:
-                  radial-gradient(circle,#0b1423 45%, transparent 46%),
-                  conic-gradient({color} {int(conf)}%, #1e293b {int(conf)}%);
-                box-shadow:0 0 40px {color};
-                ">
-                {conf}%
+                radial-gradient(circle,#0b1423 45%, transparent 46%),
+                conic-gradient({ring_color} {percent}%, #1e293b {percent}%);
+                box-shadow:0 0 40px {ring_color};">
+                {confidence}%
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+                """
 
-            if is_crack:
-                st.error(f"🚨 CRACK DETECTED ({conf}%)")
-            else:
-                st.success(f"✅ GOOD STONE ({conf}%)")
+                st.markdown(ring_html, unsafe_allow_html=True)
 
-            st.caption(f"crop scores: {['%.2f'%s for s in scores]}")
+                # DEBUG (เปิดดูได้)
+                st.caption(
+                    f"Crack={crack_prob:.3f} | Good={good_prob:.3f}"
+                )
 
+                if is_crack:
+                    st.error(f"🚨 Crack Detected ({confidence}%)")
+                else:
+                    st.success(f"✅ No Crack Detected ({confidence}%)")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown(
+    '<center style="opacity:0.4;margin-top:60px;">© 2026 Stone AI Inspection</center>',
+    unsafe_allow_html=True
+)
