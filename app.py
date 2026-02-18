@@ -13,7 +13,7 @@ from torchvision import models, transforms
 import streamlit as st
 import requests
 
-import torch.serialization
+
 
 # ==========================================
 # CONFIG (คงเดิม)
@@ -67,15 +67,22 @@ def ensure_model():
 def load_model_and_meta():
     ensure_model()
 
-    # ให้ torch load numpy scalar ได้เหมือนของเดิม
-    torch.serialization.add_safe_globals([np.core.multiarray.scalar])
+    # ให้ torch load numpy scalar ได้เหมือนของเดิม (แต่ต้องกันกรณี torch ไม่มี API นี้)
+    try:
+        if hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals"):
+            torch.serialization.add_safe_globals([np.core.multiarray.scalar])
+    except Exception:
+        pass
 
-    ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False)
+    # รองรับ torch ที่ไม่มี weights_only
+    try:
+        ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False)
+    except TypeError:
+        ckpt = torch.load(MODEL_PATH, map_location=DEVICE)
 
     model = models.efficientnet_b3(weights=None)
     model.classifier[1] = nn.Linear(model.classifier[1].in_features, 2)
 
-    # รองรับทั้งแบบ dict (มี state_dict) และแบบ state_dict ตรงๆ
     state = ckpt["state_dict"] if isinstance(ckpt, dict) and "state_dict" in ckpt else ckpt
     model.load_state_dict(state, strict=True)
     model.to(DEVICE).eval()
@@ -104,6 +111,8 @@ def load_model_and_meta():
     ])
 
     return model, class_to_idx, crack_idx, no_crack_idx, IMG_SIZE, transform
+
+
 
 
 # ===============================
@@ -413,3 +422,4 @@ if result is not None and result.get("result_text"):
             st.metric("AI Confidence", f"{confidence:.2f}%")
 
 st.caption("© 2026 Stone AI Inspection | Advanced Vision Technology")
+
