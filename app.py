@@ -4,9 +4,26 @@ import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
 import time
+import os
+import requests
 
 # ==========================
-# LOCKED BEST SETTINGS (ของม่อน)
+# MODEL DOWNLOAD CONFIG
+# ==========================
+MODEL_PATH = "model.pt"
+MODEL_URL = "https://drive.google.com/uc?id=15dY4OBZ_pii_NR8FnRpESjIpZ8omsXtH"
+
+def download_model():
+    with st.spinner("Downloading AI Model... (first time only)"):
+        r = requests.get(MODEL_URL)
+        with open(MODEL_PATH, "wb") as f:
+            f.write(r.content)
+
+if not os.path.exists(MODEL_PATH):
+    download_model()
+
+# ==========================
+# LOCKED BEST SETTINGS
 # ==========================
 CRACK_THRESHOLD = 0.58
 HIT_THRESHOLD   = 0.48
@@ -26,7 +43,7 @@ st.set_page_config(
 # ==========================
 @st.cache_resource
 def load_model():
-    model = torch.load("model.pt", map_location="cpu")
+    model = torch.load(MODEL_PATH, map_location="cpu")
     model.eval()
     return model
 
@@ -45,7 +62,6 @@ transform = transforms.Compose([
 # ===============================
 st.markdown("""
 <style>
-
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Inter:wght@400;500;600&display=swap');
 
 html, body, [class*="css"] {
@@ -54,7 +70,6 @@ html, body, [class*="css"] {
     color: white;
 }
 
-/* Animated Grid */
 body::before {
     content: "";
     position: fixed;
@@ -73,7 +88,6 @@ body::before {
     to {transform: translate(-60px,-60px);}
 }
 
-/* Title */
 .title {
     font-family: 'Orbitron', sans-serif;
     font-size: 50px;
@@ -131,7 +145,6 @@ body::before {
     opacity:0.4;
     font-size:13px;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -159,7 +172,6 @@ with st.container():
             st.image(image, use_column_width=True)
 
         with col2:
-
             if st.button("Start AI Scan"):
 
                 progress = st.progress(0)
@@ -167,9 +179,6 @@ with st.container():
                     time.sleep(0.005)
                     progress.progress(i+1)
 
-                # ==========================
-                # Inference
-                # ==========================
                 img_tensor = transform(image).unsqueeze(0)
 
                 with torch.no_grad():
@@ -177,16 +186,10 @@ with st.container():
                     prob = torch.softmax(output, dim=1)
                     crack_prob = prob[0][1].item()
 
-                # ==========================
-                # Multi-crop logic
-                # ==========================
                 crop_scores = [crack_prob for _ in range(5)]
                 crack_max = max(crop_scores)
                 hit_count = sum([1 for s in crop_scores if s >= HIT_THRESHOLD])
 
-                # ==========================
-                # Decision Logic
-                # ==========================
                 if crack_max >= CRACK_THRESHOLD:
                     final_result = True
                 elif hit_count >= HIT_K:
@@ -197,15 +200,14 @@ with st.container():
                 confidence = round(crack_max * 100, 2)
                 percent = int(confidence)
 
-                # ==========================
-                # RING UI
-                # ==========================
+                ring_color = "#ff3b3b" if final_result else "#00ffcc"
+
                 ring_html = f"""
                 <div class="result-ring" style="
                 background:
                 radial-gradient(circle,#0b1423 45%, transparent 46%),
-                conic-gradient(#00ffcc {percent}%, #1e293b {percent}%);
-                box-shadow:0 0 40px #00ffcc;">
+                conic-gradient({ring_color} {percent}%, #1e293b {percent}%);
+                box-shadow:0 0 40px {ring_color};">
                 {confidence}%
                 </div>
                 """
