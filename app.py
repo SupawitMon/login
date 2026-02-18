@@ -1,8 +1,9 @@
 import streamlit as st
 import torch
+import torch.nn as nn
 import torchvision.transforms as transforms
+from torchvision import models
 from PIL import Image
-import numpy as np
 import time
 import os
 import requests
@@ -10,11 +11,11 @@ import requests
 # ==========================
 # MODEL DOWNLOAD CONFIG
 # ==========================
-MODEL_PATH = "model.pt"
+MODEL_PATH = "best_model.pth"
 MODEL_URL = "https://drive.google.com/uc?id=15dY4OBZ_pii_NR8FnRpESjIpZ8omsXtH"
 
 def download_model():
-    with st.spinner("Downloading AI Model... (first time only)"):
+    with st.spinner("Downloading AI Model (first run only)..."):
         r = requests.get(MODEL_URL)
         with open(MODEL_PATH, "wb") as f:
             f.write(r.content)
@@ -23,7 +24,7 @@ if not os.path.exists(MODEL_PATH):
     download_model()
 
 # ==========================
-# LOCKED BEST SETTINGS
+# LOCKED SETTINGS
 # ==========================
 CRACK_THRESHOLD = 0.58
 HIT_THRESHOLD   = 0.48
@@ -39,22 +40,29 @@ st.set_page_config(
 )
 
 # ==========================
-# LOAD MODEL (โหลดครั้งเดียว)
+# LOAD MODEL (ถูกต้องตาม training script)
 # ==========================
 @st.cache_resource
 def load_model():
-    model = torch.load(MODEL_PATH, map_location="cpu")
+    checkpoint = torch.load(MODEL_PATH, map_location="cpu")
+
+    model = models.efficientnet_b3(weights=None)
+    model.classifier[1] = nn.Linear(model.classifier[1].in_features, 2)
+
+    model.load_state_dict(checkpoint["state_dict"])
     model.eval()
     return model
 
 model = load_model()
 
 # ==========================
-# TRANSFORM
+# TRANSFORM (ต้อง normalize เหมือนตอน train)
 # ==========================
 transform = transforms.Compose([
-    transforms.Resize((224,224)),
+    transforms.Resize((300, 300)),
     transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406],
+                         [0.229, 0.224, 0.225]),
 ])
 
 # ===============================
@@ -68,24 +76,6 @@ html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
     background: radial-gradient(circle at 20% 20%, #0f2027, #0b1423 60%);
     color: white;
-}
-
-body::before {
-    content: "";
-    position: fixed;
-    width: 200%;
-    height: 200%;
-    background-image:
-        linear-gradient(rgba(0,255,255,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,255,255,0.05) 1px, transparent 1px);
-    background-size: 60px 60px;
-    animation: moveGrid 40s linear infinite;
-    z-index: -1;
-}
-
-@keyframes moveGrid {
-    from {transform: translate(0,0);}
-    to {transform: translate(-60px,-60px);}
 }
 
 .title {
@@ -125,26 +115,6 @@ body::before {
     font-size:24px;
     font-weight:bold;
 }
-
-.metric-card {
-    background: rgba(255,255,255,0.05);
-    padding:30px;
-    border-radius:18px;
-    text-align:center;
-    border:1px solid rgba(255,255,255,0.08);
-}
-
-.metric-value {
-    font-size:30px;
-    font-weight:700;
-}
-
-.footer {
-    text-align:center;
-    margin-top:60px;
-    opacity:0.4;
-    font-size:13px;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -163,7 +133,6 @@ with st.container():
     uploaded = st.file_uploader("Upload Stone Image", type=["jpg","png","jpeg"])
 
     if uploaded:
-
         image = Image.open(uploaded).convert("RGB")
 
         col1, col2 = st.columns([1,1])
@@ -176,7 +145,7 @@ with st.container():
 
                 progress = st.progress(0)
                 for i in range(100):
-                    time.sleep(0.005)
+                    time.sleep(0.004)
                     progress.progress(i+1)
 
                 img_tensor = transform(image).unsqueeze(0)
@@ -186,9 +155,8 @@ with st.container():
                     prob = torch.softmax(output, dim=1)
                     crack_prob = prob[0][1].item()
 
-                crop_scores = [crack_prob for _ in range(5)]
-                crack_max = max(crop_scores)
-                hit_count = sum([1 for s in crop_scores if s >= HIT_THRESHOLD])
+                crack_max = crack_prob
+                hit_count = 1 if crack_prob >= HIT_THRESHOLD else 0
 
                 if crack_max >= CRACK_THRESHOLD:
                     final_result = True
@@ -219,13 +187,6 @@ with st.container():
                 else:
                     st.success(f"✅ No Crack Detected ({confidence}%)")
 
-                st.markdown("##")
-
-                colA, colB, colC = st.columns(3)
-                colA.markdown(f'<div class="metric-card"><div>Max Crack Score</div><div class="metric-value">{round(crack_max,3)}</div></div>', unsafe_allow_html=True)
-                colB.markdown(f'<div class="metric-card"><div>Hit Count</div><div class="metric-value">{hit_count}</div></div>', unsafe_allow_html=True)
-                colC.markdown(f'<div class="metric-card"><div>Threshold</div><div class="metric-value">{CRACK_THRESHOLD}</div></div>', unsafe_allow_html=True)
-
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="footer">© 2026 Stone AI Inspection | Ultra AI Vision Lab</div>', unsafe_allow_html=True)
+st.markdown('<center style="opacity:0.4;margin-top:60px;">© 2026 Stone AI Inspection</center>', unsafe_allow_html=True)
