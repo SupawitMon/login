@@ -1,9 +1,0 @@
-streamlit==1.30.0
-torch==2.1.2
-torchvision==0.16.2
-numpy
-pillow
-huggingface_hub
-opencv-python-headless
-gdown
-safetensors
