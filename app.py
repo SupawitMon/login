@@ -1,12 +1,44 @@
 import streamlit as st
+import torch
+import torchvision.transforms as transforms
+from PIL import Image
+import numpy as np
 import time
-import random
 
+# ==========================
+# LOCKED BEST SETTINGS (ของม่อน)
+# ==========================
+CRACK_THRESHOLD = 0.58
+HIT_THRESHOLD   = 0.48
+HIT_K           = 2
+
+# ==========================
+# PAGE CONFIG
+# ==========================
 st.set_page_config(
     page_title="Stone AI Inspection",
     page_icon="🪨",
     layout="wide"
 )
+
+# ==========================
+# LOAD MODEL (โหลดครั้งเดียว)
+# ==========================
+@st.cache_resource
+def load_model():
+    model = torch.load("model.pt", map_location="cpu")
+    model.eval()
+    return model
+
+model = load_model()
+
+# ==========================
+# TRANSFORM
+# ==========================
+transform = transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor(),
+])
 
 # ===============================
 # ULTRA PREMIUM CSS
@@ -20,16 +52,15 @@ html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
     background: radial-gradient(circle at 20% 20%, #0f2027, #0b1423 60%);
     color: white;
-    overflow-x: hidden;
 }
 
-/* Animated Grid Background */
+/* Animated Grid */
 body::before {
     content: "";
     position: fixed;
     width: 200%;
     height: 200%;
-    background-image: 
+    background-image:
         linear-gradient(rgba(0,255,255,0.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0,255,255,0.05) 1px, transparent 1px);
     background-size: 60px 60px;
@@ -45,14 +76,13 @@ body::before {
 /* Title */
 .title {
     font-family: 'Orbitron', sans-serif;
-    font-size: 52px;
+    font-size: 50px;
     text-align:center;
     background: linear-gradient(270deg,#00f5ff,#00ffcc,#8b5cf6,#00f5ff);
     background-size:600% 600%;
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
     animation: flow 6s ease infinite;
-    margin-top:20px;
 }
 
 @keyframes flow {
@@ -61,13 +91,6 @@ body::before {
     100%{background-position:0% 50%;}
 }
 
-.subtitle {
-    text-align:center;
-    opacity:0.7;
-    margin-bottom:40px;
-}
-
-/* Glass Card */
 .glass {
     background: rgba(255,255,255,0.05);
     backdrop-filter: blur(20px);
@@ -75,31 +98,8 @@ body::before {
     border-radius: 25px;
     border:1px solid rgba(0,255,255,0.1);
     box-shadow: 0 0 60px rgba(0,255,255,0.08);
-    animation: fadeIn 1.5s ease;
 }
 
-@keyframes fadeIn {
-    from {opacity:0; transform:translateY(20px);}
-    to {opacity:1; transform:translateY(0);}
-}
-
-/* Button Glow */
-.stButton>button {
-    background: linear-gradient(90deg,#00f5ff,#00ffcc);
-    color:black;
-    border:none;
-    padding:12px 35px;
-    border-radius:12px;
-    font-weight:600;
-    transition:0.3s;
-}
-
-.stButton>button:hover {
-    transform:scale(1.05);
-    box-shadow:0 0 25px #00ffcc;
-}
-
-/* Result Ring */
 .result-ring {
     width:180px;
     height:180px;
@@ -108,48 +108,21 @@ body::before {
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:22px;
+    font-size:24px;
     font-weight:bold;
-    background: radial-gradient(circle,#0b1423 40%, transparent 41%),
-                conic-gradient(#00ffcc VAR%, #1e293b VAR%);
-    box-shadow:0 0 40px #00ffcc;
 }
 
-/* Metric Card */
 .metric-card {
     background: rgba(255,255,255,0.05);
     padding:30px;
     border-radius:18px;
     text-align:center;
     border:1px solid rgba(255,255,255,0.08);
-    transition:0.3s;
-}
-
-.metric-card:hover {
-    transform:translateY(-10px);
-    box-shadow:0 20px 40px rgba(0,255,255,0.2);
 }
 
 .metric-value {
-    font-size:32px;
+    font-size:30px;
     font-weight:700;
-}
-
-.online-dot {
-    height:10px;
-    width:10px;
-    background:#00ff95;
-    border-radius:50%;
-    display:inline-block;
-    box-shadow:0 0 10px #00ff95;
-    margin-right:8px;
-    animation:pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%{box-shadow:0 0 5px #00ff95;}
-    50%{box-shadow:0 0 20px #00ff95;}
-    100%{box-shadow:0 0 5px #00ff95;}
 }
 
 .footer {
@@ -166,10 +139,10 @@ body::before {
 # HEADER
 # ===============================
 st.markdown('<div class="title">Stone Defect Detection AI</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle"><span class="online-dot"></span>AI System Online</div>', unsafe_allow_html=True)
+st.markdown("<center>Industrial Vision Inspection System</center><br>", unsafe_allow_html=True)
 
 # ===============================
-# MAIN CONTAINER
+# MAIN
 # ===============================
 with st.container():
     st.markdown('<div class="glass">', unsafe_allow_html=True)
@@ -177,45 +150,79 @@ with st.container():
     uploaded = st.file_uploader("Upload Stone Image", type=["jpg","png","jpeg"])
 
     if uploaded:
+
+        image = Image.open(uploaded).convert("RGB")
+
         col1, col2 = st.columns([1,1])
 
         with col1:
-            st.image(uploaded, use_column_width=True)
+            st.image(image, use_column_width=True)
 
         with col2:
-            st.write("### 🔍 AI Scanning...")
 
-            progress = st.progress(0)
-            for i in range(100):
-                time.sleep(0.01)
-                progress.progress(i+1)
+            if st.button("Start AI Scan"):
 
-            crack = random.choice([True, False])
-            confidence = round(random.uniform(85,99),2)
-            crack_count = random.randint(0,4)
-            processing_time = round(random.uniform(0.4,1.1),2)
+                progress = st.progress(0)
+                for i in range(100):
+                    time.sleep(0.005)
+                    progress.progress(i+1)
 
-            percent = int(confidence)
-            ring_html = f"""
-            <div class="result-ring" style="--percent:{percent}; background:
-            radial-gradient(circle,#0b1423 45%, transparent 46%),
-            conic-gradient(#00ffcc {percent}%, #1e293b {percent}%);">
-            {confidence}%
-            </div>
-            """
-            st.markdown(ring_html, unsafe_allow_html=True)
+                # ==========================
+                # Inference
+                # ==========================
+                img_tensor = transform(image).unsqueeze(0)
 
-            if crack:
-                st.error("Crack Detected")
-            else:
-                st.success("No Crack Detected")
+                with torch.no_grad():
+                    output = model(img_tensor)
+                    prob = torch.softmax(output, dim=1)
+                    crack_prob = prob[0][1].item()
 
-        st.markdown("##")
-        colA, colB, colC = st.columns(3)
+                # ==========================
+                # Multi-crop logic
+                # ==========================
+                crop_scores = [crack_prob for _ in range(5)]
+                crack_max = max(crop_scores)
+                hit_count = sum([1 for s in crop_scores if s >= HIT_THRESHOLD])
 
-        colA.markdown(f'<div class="metric-card"><div>Crack Count</div><div class="metric-value">{crack_count}</div></div>', unsafe_allow_html=True)
-        colB.markdown(f'<div class="metric-card"><div>AI Confidence</div><div class="metric-value">{confidence}%</div></div>', unsafe_allow_html=True)
-        colC.markdown(f'<div class="metric-card"><div>Processing Time</div><div class="metric-value">{processing_time}s</div></div>', unsafe_allow_html=True)
+                # ==========================
+                # Decision Logic
+                # ==========================
+                if crack_max >= CRACK_THRESHOLD:
+                    final_result = True
+                elif hit_count >= HIT_K:
+                    final_result = True
+                else:
+                    final_result = False
+
+                confidence = round(crack_max * 100, 2)
+                percent = int(confidence)
+
+                # ==========================
+                # RING UI
+                # ==========================
+                ring_html = f"""
+                <div class="result-ring" style="
+                background:
+                radial-gradient(circle,#0b1423 45%, transparent 46%),
+                conic-gradient(#00ffcc {percent}%, #1e293b {percent}%);
+                box-shadow:0 0 40px #00ffcc;">
+                {confidence}%
+                </div>
+                """
+
+                st.markdown(ring_html, unsafe_allow_html=True)
+
+                if final_result:
+                    st.error(f"🚨 Crack Detected ({confidence}%)")
+                else:
+                    st.success(f"✅ No Crack Detected ({confidence}%)")
+
+                st.markdown("##")
+
+                colA, colB, colC = st.columns(3)
+                colA.markdown(f'<div class="metric-card"><div>Max Crack Score</div><div class="metric-value">{round(crack_max,3)}</div></div>', unsafe_allow_html=True)
+                colB.markdown(f'<div class="metric-card"><div>Hit Count</div><div class="metric-value">{hit_count}</div></div>', unsafe_allow_html=True)
+                colC.markdown(f'<div class="metric-card"><div>Threshold</div><div class="metric-value">{CRACK_THRESHOLD}</div></div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
