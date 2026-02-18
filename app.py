@@ -1,7 +1,7 @@
 import streamlit as st
 
 # ==========================
-# PAGE CONFIG (ต้องมาก่อน st อื่นทั้งหมด)
+# PAGE CONFIG
 # ==========================
 st.set_page_config(
     page_title="Stone AI Inspection",
@@ -18,7 +18,7 @@ import time
 from huggingface_hub import hf_hub_download
 
 # ==========================
-# DOWNLOAD MODEL FROM HUGGINGFACE (Xet-safe)
+# DOWNLOAD MODEL
 # ==========================
 @st.cache_resource
 def get_model_path():
@@ -28,13 +28,6 @@ def get_model_path():
     )
 
 MODEL_PATH = get_model_path()
-
-# ==========================
-# LOCKED SETTINGS
-# ==========================
-CRACK_THRESHOLD = 0.58
-HIT_THRESHOLD   = 0.48
-HIT_K           = 2
 
 # ==========================
 # LOAD MODEL
@@ -48,12 +41,17 @@ def load_model():
 
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
-    return model
 
-model = load_model()
+    class_to_idx = checkpoint["class_to_idx"]
+    idx_to_class = {v: k for k, v in class_to_idx.items()}
+
+    return model, idx_to_class
+
+
+model, idx_to_class = load_model()
 
 # ==========================
-# TRANSFORM
+# TRANSFORM (ต้องตรงกับตอน TRAIN)
 # ==========================
 transform = transforms.Compose([
     transforms.Resize((300, 300)),
@@ -63,127 +61,69 @@ transform = transforms.Compose([
 ])
 
 # ===============================
-# PREMIUM CSS
+# UI
 # ===============================
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+st.title("Stone Defect Detection AI")
+st.write("Industrial Vision Inspection System")
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-    background: radial-gradient(circle at 20% 20%, #0f2027, #0b1423 60%);
-    color: white;
-}
+uploaded = st.file_uploader("Upload Stone Image", type=["jpg","png","jpeg"])
 
-.title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 50px;
-    text-align:center;
-    background: linear-gradient(270deg,#00f5ff,#00ffcc,#8b5cf6,#00f5ff);
-    background-size:600% 600%;
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-    animation: flow 6s ease infinite;
-}
+if uploaded:
+    image = Image.open(uploaded).convert("RGB")
 
-@keyframes flow {
-    0%{background-position:0% 50%;}
-    50%{background-position:100% 50%;}
-    100%{background-position:0% 50%;}
-}
+    col1, col2 = st.columns([1,1])
 
-.glass {
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(20px);
-    padding: 40px;
-    border-radius: 25px;
-    border:1px solid rgba(0,255,255,0.1);
-    box-shadow: 0 0 60px rgba(0,255,255,0.08);
-}
+    with col1:
+        st.image(image, use_column_width=True)
 
-.result-ring {
-    width:180px;
-    height:180px;
-    border-radius:50%;
-    margin:auto;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:24px;
-    font-weight:bold;
-}
-</style>
-""", unsafe_allow_html=True)
+    with col2:
+        if st.button("Start AI Scan"):
 
-# ===============================
-# HEADER
-# ===============================
-st.markdown('<div class="title">Stone Defect Detection AI</div>', unsafe_allow_html=True)
-st.markdown("<center>Industrial Vision Inspection System</center><br>", unsafe_allow_html=True)
+            progress = st.progress(0)
+            for i in range(100):
+                time.sleep(0.003)
+                progress.progress(i+1)
 
-# ===============================
-# MAIN
-# ===============================
-with st.container():
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
+            img_tensor = transform(image).unsqueeze(0)
 
-    uploaded = st.file_uploader("Upload Stone Image", type=["jpg","png","jpeg"])
+            with torch.no_grad():
+                output = model(img_tensor)
+                probs = torch.softmax(output, dim=1)
+                pred_idx = torch.argmax(probs, dim=1).item()
+                confidence = probs[0][pred_idx].item()
 
-    if uploaded:
-        image = Image.open(uploaded).convert("RGB")
+            pred_class = idx_to_class[pred_idx]
+            percent = int(confidence * 100)
 
-        col1, col2 = st.columns([1,1])
+            is_crack = pred_class.lower() == "crack"
 
-        with col1:
-            st.image(image, use_column_width=True)
+            ring_color = "#ff3b3b" if is_crack else "#00ffcc"
 
-        with col2:
-            if st.button("Start AI Scan"):
-
-                progress = st.progress(0)
-                for i in range(100):
-                    time.sleep(0.004)
-                    progress.progress(i+1)
-
-                img_tensor = transform(image).unsqueeze(0)
-
-                with torch.no_grad():
-                    output = model(img_tensor)
-                    prob = torch.softmax(output, dim=1)
-                    crack_prob = prob[0][1].item()
-
-                crack_max = crack_prob
-                hit_count = 1 if crack_prob >= HIT_THRESHOLD else 0
-
-                if crack_max >= CRACK_THRESHOLD:
-                    final_result = True
-                elif hit_count >= HIT_K:
-                    final_result = True
-                else:
-                    final_result = False
-
-                confidence = round(crack_max * 100, 2)
-                percent = int(confidence)
-
-                ring_color = "#ff3b3b" if final_result else "#00ffcc"
-
-                ring_html = f"""
-                <div class="result-ring" style="
+            ring_html = f"""
+            <div style="
+                width:180px;
+                height:180px;
+                border-radius:50%;
+                margin:auto;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:24px;
+                font-weight:bold;
                 background:
-                radial-gradient(circle,#0b1423 45%, transparent 46%),
+                radial-gradient(circle,#0f172a 45%, transparent 46%),
                 conic-gradient({ring_color} {percent}%, #1e293b {percent}%);
                 box-shadow:0 0 40px {ring_color};">
-                {confidence}%
-                </div>
-                """
+                {percent}%
+            </div>
+            """
 
-                st.markdown(ring_html, unsafe_allow_html=True)
+            st.markdown(ring_html, unsafe_allow_html=True)
 
-                if final_result:
-                    st.error(f"🚨 Crack Detected ({confidence}%)")
-                else:
-                    st.success(f"✅ No Crack Detected ({confidence}%)")
+            if is_crack:
+                st.error(f"🚨 Crack Detected ({percent}%)")
+            else:
+                st.success(f"✅ No Crack Detected ({percent}%)")
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('<center style="opacity:0.4;margin-top:60px;">© 2026 Stone AI Inspection</center>', unsafe_allow_html=True)
+st.markdown("---")
+st.caption("© 2026 Stone AI Inspection")
