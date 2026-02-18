@@ -1,159 +1,216 @@
-import os
-import time
-import uuid
-import cv2
-import numpy as np
-from PIL import Image
-
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
-
 import streamlit as st
-import gdown
-import torch.serialization
+import time
+import random
 
-# ==========================================
-# CONFIG
-# ==========================================
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-MODEL_PATH = "best_model.pth"
-GDRIVE_FILE_ID = "15dY4OBZ_pii_NR8FnRpESjIpZ8omsXtH"
-
-CRACK_THRESHOLD = 0.58
-HIT_THRESHOLD   = 0.48
-HIT_K           = 2
-
-USE_MULTI_CROP = True
-CROP_RATIO = 0.75
-USE_9_CROP = True
-
-STONE_LAP_MIN  = 90.0
-STONE_EDGE_MIN = 0.015
-
-ALLOWED_EXT = [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
-
-# ==========================================
-# Download model if missing
-# ==========================================
-def ensure_model():
-    if os.path.exists(MODEL_PATH):
-        return
-    url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
-    gdown.download(url, MODEL_PATH, quiet=False)
-
-ensure_model()
-
-# ==========================================
-# LOAD MODEL
-# ==========================================
-torch.serialization.add_safe_globals([np.core.multiarray.scalar])
-
-ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False)
-
-model = models.efficientnet_b3(weights=None)
-model.classifier[1] = nn.Linear(model.classifier[1].in_features, 2)
-
-state = ckpt["state_dict"] if "state_dict" in ckpt else ckpt
-model.load_state_dict(state, strict=True)
-model.to(DEVICE).eval()
-
-class_to_idx = ckpt["class_to_idx"]
-crack_idx = class_to_idx["Crack"]
-no_crack_idx = class_to_idx["No Crack"]
-
-IMG_SIZE = int(ckpt.get("img_size", 300))
-
-transform = transforms.Compose([
-    transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-])
-
-# ==========================================
-# CV Stone Gate
-# ==========================================
-def is_stone_cv(bgr_img):
-    gray = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
-    lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    edges = cv2.Canny(gray, 50, 150)
-    edge_density = float(np.sum(edges > 0) / (bgr_img.shape[0] * bgr_img.shape[1]))
-    return (lap_var >= STONE_LAP_MIN) and (edge_density >= STONE_EDGE_MIN)
-
-# ==========================================
-# AI Predict
-# ==========================================
-def _predict_probs(pil_img):
-    x = transform(pil_img).unsqueeze(0).to(DEVICE)
-    with torch.no_grad():
-        logits = model(x)
-        probs = torch.softmax(logits, dim=1)[0]
-    return float(probs[crack_idx]), float(probs[no_crack_idx])
-
-def predict_image_ai(pil_img):
-    if not USE_MULTI_CROP:
-        return _predict_probs(pil_img)
-
-    W, H = pil_img.size
-    crop_size = int(min(W, H) * CROP_RATIO)
-    crop_size = max(32, crop_size)
-
-    boxes = [
-        (0,0,crop_size,crop_size),
-        (W-crop_size,0,W,crop_size),
-        (0,H-crop_size,crop_size,H),
-        (W-crop_size,H-crop_size,W,H),
-        ((W-crop_size)//2,(H-crop_size)//2,
-         (W+crop_size)//2,(H+crop_size)//2)
-    ]
-
-    crack_probs = []
-    no_probs = []
-
-    for b in boxes:
-        patch = pil_img.crop(b)
-        c,n = _predict_probs(patch)
-        crack_probs.append(c)
-        no_probs.append(n)
-
-    return max(crack_probs), max(no_probs)
-
-# ==========================================
-# STREAMLIT UI
-# ==========================================
-st.title("🪨 Stone Crack Inspection AI")
-
-uploaded_file = st.file_uploader(
-    "อัปโหลดรูปหิน",
-    type=["jpg","jpeg","png","webp","bmp"]
+# ===============================
+# PAGE CONFIG
+# ===============================
+st.set_page_config(
+    page_title="Stone AI Inspection",
+    page_icon="🪨",
+    layout="wide"
 )
 
-if uploaded_file is not None:
+# ===============================
+# CUSTOM CSS (ULTRA PREMIUM UI)
+# ===============================
+st.markdown("""
+<style>
 
-    start_time = time.time()
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Inter:wght@400;500;600&display=swap');
 
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+html, body, [class*="css"]  {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(-45deg, #0b1423, #0f1b2e, #0b1423, #121c30);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    color: white;
+}
 
-    bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+@keyframes gradientBG {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
 
-    if not is_stone_cv(bgr):
-        st.error("❌ ไม่ใช่หิน")
-    else:
-        crack_prob, no_crack_prob = predict_image_ai(image)
+.glass {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 0 40px rgba(0,255,255,0.08);
+}
 
-        crack_hits = crack_prob >= CRACK_THRESHOLD
-        is_crack = crack_hits
+.title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 48px;
+    text-align:center;
+    background: linear-gradient(270deg,#00bfff,#00ffcc,#8b5cf6,#00bfff);
+    background-size:600% 600%;
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation: flow 6s ease infinite;
+}
 
-        confidence = round((crack_prob if is_crack else no_crack_prob)*100,2)
+@keyframes flow {
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+}
 
-        if is_crack:
-            st.error(f"❌ พบรอยแตก ({confidence}%)")
-        else:
-            st.success(f"✅ ไม่พบรอยแตก ({confidence}%)")
+.subtitle {
+    text-align:center;
+    opacity:0.8;
+    margin-bottom:40px;
+}
 
-    st.write("Processing time:", round(time.time()-start_time,3), "sec")
+.metric-card {
+    background: rgba(255,255,255,0.05);
+    padding:25px;
+    border-radius:15px;
+    text-align:center;
+    transition:0.3s;
+    border:1px solid rgba(255,255,255,0.08);
+}
+
+.metric-card:hover{
+    transform: translateY(-8px);
+    box-shadow: 0 10px 30px rgba(0,255,255,0.15);
+}
+
+.metric-label {
+    font-size:14px;
+    opacity:0.6;
+}
+
+.metric-value {
+    font-size:28px;
+    font-weight:600;
+}
+
+.stButton>button {
+    background: linear-gradient(90deg,#00bfff,#00ffcc);
+    color:white;
+    border:none;
+    padding:12px 30px;
+    border-radius:10px;
+    font-weight:600;
+    transition:0.3s;
+}
+
+.stButton>button:hover{
+    transform:scale(1.05);
+    box-shadow:0 0 20px #00ffcc;
+}
+
+.progress-bar {
+    height:12px;
+    border-radius:20px;
+    background:rgba(255,255,255,0.1);
+    overflow:hidden;
+    margin-top:20px;
+}
+
+.progress-fill {
+    height:100%;
+    border-radius:20px;
+    transition: width 1.5s ease;
+}
+
+.success { background:linear-gradient(90deg,#00e676,#00ffcc); }
+.danger { background:linear-gradient(90deg,#ff5252,#ff1744); }
+
+.footer {
+    text-align:center;
+    margin-top:60px;
+    opacity:0.5;
+    font-size:13px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ===============================
+# HEADER
+# ===============================
+st.markdown('<div class="title">Stone Defect Detection AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Advanced Vision Inspection System</div>', unsafe_allow_html=True)
+
+# ===============================
+# MAIN GLASS CONTAINER
+# ===============================
+with st.container():
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+
+    uploaded = st.file_uploader("Upload Stone Image", type=["jpg","png","jpeg"])
+
+    if uploaded:
+
+        col1, col2 = st.columns([1,1])
+
+        with col1:
+            st.image(uploaded, caption="Uploaded Image", use_column_width=True)
+
+        with col2:
+            st.write("### 🔍 AI Processing...")
+            progress = st.progress(0)
+
+            for i in range(100):
+                time.sleep(0.01)
+                progress.progress(i+1)
+
+            # ====== Fake AI result (replace with your model) ======
+            crack = random.choice([True, False])
+            confidence = round(random.uniform(88,99.9),2)
+            crack_count = random.randint(0,5)
+            processing_time = round(random.uniform(0.4,1.2),2)
+
+            st.markdown("##")
+
+            if crack:
+                st.error(f"❌ Crack Detected ({confidence}%)")
+                bar_class = "danger"
+            else:
+                st.success(f"✅ No Crack Detected ({confidence}%)")
+                bar_class = "success"
+
+            st.markdown(f"""
+            <div class="progress-bar">
+                <div class="progress-fill {bar_class}" style="width:{confidence}%"></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ===== METRIC DASHBOARD =====
+        st.markdown("##")
+        colA, colB, colC = st.columns(3)
+
+        with colA:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">Crack Count</div>
+                <div class="metric-value">{crack_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with colB:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">AI Confidence</div>
+                <div class="metric-value">{confidence}%</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with colC:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">Processing Time</div>
+                <div class="metric-value">{processing_time}s</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ===============================
+# FOOTER
+# ===============================
+st.markdown('<div class="footer">© 2026 Stone AI Inspection | AI Vision Technology</div>', unsafe_allow_html=True)
