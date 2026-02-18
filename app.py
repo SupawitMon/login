@@ -5,8 +5,6 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
-import numpy as np
-import cv2
 
 # ===============================
 # CONFIG
@@ -17,29 +15,26 @@ MODEL_URL = "https://huggingface.co/Mon2948/best_model/resolve/main/best_model.p
 MODEL_PATH = "best_model.pth"
 
 CLASS_NAMES = ["Crack", "No Crack"]
-CRACK_IDX = 0
-NO_IDX = 1
 
 # ===============================
-# DOWNLOAD MODEL (SAFE)
+# DOWNLOAD MODEL
 # ===============================
 def download_model():
     if os.path.exists(MODEL_PATH):
         return
 
-    with st.spinner("📥 Downloading AI model..."):
+    with st.spinner("📥 Downloading model..."):
         r = requests.get(MODEL_URL, timeout=30)
         r.raise_for_status()
 
-        # กันโหลด HTML page
         if b"<html" in r.content[:200].lower():
-            raise RuntimeError("❌ Downloaded file is HTML, not a PyTorch model")
+            raise RuntimeError("Downloaded file is HTML, not a model")
 
         with open(MODEL_PATH, "wb") as f:
             f.write(r.content)
 
 # ===============================
-# LOAD MODEL
+# LOAD MODEL (FIXED)
 # ===============================
 @st.cache_resource
 def load_model():
@@ -48,15 +43,31 @@ def load_model():
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, 2)
 
-    state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
-    model.load_state_dict(state_dict)
+    checkpoint = torch.load(MODEL_PATH, map_location=DEVICE)
 
+    # 🔥 รองรับทุก format
+    if isinstance(checkpoint, dict):
+        if "state_dict" in checkpoint:
+            state_dict = checkpoint["state_dict"]
+        elif "model_state_dict" in checkpoint:
+            state_dict = checkpoint["model_state_dict"]
+        else:
+            state_dict = checkpoint
+    else:
+        raise RuntimeError("Invalid checkpoint format")
+
+    # กรณีเทรนด้วย DataParallel
+    new_state = {}
+    for k, v in state_dict.items():
+        new_state[k.replace("module.", "")] = v
+
+    model.load_state_dict(new_state)
     model.to(DEVICE)
     model.eval()
     return model
 
 # ===============================
-# IMAGE PREPROCESS
+# PREPROCESS
 # ===============================
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -67,63 +78,39 @@ transform = transforms.Compose([
     )
 ])
 
-def preprocess_image(img_pil):
-    return transform(img_pil).unsqueeze(0).to(DEVICE)
-
-# ===============================
-# PREDICT
-# ===============================
-def predict(img_pil, model):
-    x = preprocess_image(img_pil)
-
+def predict(img, model):
+    x = transform(img).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
-        logits = model(x)
-        probs = torch.softmax(logits, dim=1)[0]
+        out = model(x)
+        prob = torch.softmax(out, dim=1)[0]
 
-    crack_p = probs[CRACK_IDX].item()
-    no_p = probs[NO_IDX].item()
-
-    if crack_p > no_p:
-        return "❌ หินแตก", crack_p
-    else:
-        return "✅ หินดี", no_p
+    idx = prob.argmax().item()
+    return CLASS_NAMES[idx], prob[idx].item()
 
 # ===============================
-# STREAMLIT UI
+# UI
 # ===============================
-st.set_page_config(
-    page_title="Stone Crack AI",
-    layout="centered"
-)
-
+st.set_page_config(page_title="Stone Crack AI", layout="centered")
 st.title("🪨 Stone Crack AI Inspection")
 st.caption("ResNet18 • PyTorch • Streamlit")
 
 model = load_model()
 
-uploaded = st.file_uploader(
-    "📷 อัปโหลดภาพหิน",
-    type=["jpg", "jpeg", "png"]
-)
+file = st.file_uploader("📷 Upload stone image", type=["jpg", "png", "jpeg"])
 
-if uploaded:
-    img = Image.open(uploaded).convert("RGB")
+if file:
+    img = Image.open(file).convert("RGB")
+    st.image(img, use_column_width=True)
 
-    st.image(img, caption="ภาพต้นฉบับ", use_column_width=True)
-
-    label, confidence = predict(img, model)
+    label, conf = predict(img, model)
 
     st.markdown("---")
-    st.subheader("📊 ผลการทำนาย")
-    st.metric(
-        label=label,
-        value=f"{confidence*100:.2f} %"
-    )
+    st.metric(label, f"{conf*100:.2f}%")
 
-    if "แตก" in label:
-        st.error("พบรอยแตกในหิน")
+    if label == "Crack":
+        st.error("❌ พบรอยแตก")
     else:
-        st.success("ไม่พบรอยแตก")
+        st.success("✅ หินดี")
 
 st.markdown("---")
 st.caption("© Stone Crack AI")
