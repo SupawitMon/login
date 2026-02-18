@@ -20,7 +20,7 @@ import requests
 # MODEL DOWNLOAD CONFIG
 # ==========================
 MODEL_PATH = "best_model.pth"
-MODEL_URL = "https://drive.google.com/uc?id=15dY4OBZ_pii_NR8FnRpESjIpZ8omsXtH"
+MODEL_URL = "https://huggingface.co/Mon2948/best_model/resolve/main/best_model.pth"
 
 def download_model():
     with st.spinner("Downloading AI Model (first run only)..."):
@@ -191,4 +191,5 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<center style="opacity:0.4;margin-top:60px;">© 2026 Stone AI Inspection</center>', unsafe_allow_html=True)
+
 
