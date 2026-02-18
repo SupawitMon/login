@@ -1,50 +1,33 @@
 import streamlit as st
+
 # ==========================
-# PAGE CONFIG
+# PAGE CONFIG (ต้องมาก่อน st อื่นทั้งหมด)
 # ==========================
 st.set_page_config(
     page_title="Stone AI Inspection",
     page_icon="🪨",
     layout="wide"
 )
+
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from torchvision import models
 from PIL import Image
 import time
-import os
-import requests
+from huggingface_hub import hf_hub_download
 
 # ==========================
-# MODEL DOWNLOAD CONFIG
+# DOWNLOAD MODEL FROM HUGGINGFACE (Xet-safe)
 # ==========================
+@st.cache_resource
+def get_model_path():
+    return hf_hub_download(
+        repo_id="Mon2948/best_model",
+        filename="best_model.pth"
+    )
 
-MODEL_PATH = "best_model.pth"
-MODEL_URL = "https://huggingface.co/Mon2948/best_model/resolve/main/best_model.pth"
-
-def download_model():
-    with st.spinner("Downloading AI Model (first run only)..."):
-        response = requests.get(MODEL_URL, stream=True)
-        response.raise_for_status()
-
-        total_size = int(response.headers.get("content-length", 0))
-        progress_bar = st.progress(0)
-        downloaded = 0
-
-        with open(MODEL_PATH, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total_size > 0:
-                        progress_bar.progress(min(downloaded / total_size, 1.0))
-
-        progress_bar.empty()
-
-if not os.path.exists(MODEL_PATH):
-    download_model()
-
+MODEL_PATH = get_model_path()
 
 # ==========================
 # LOCKED SETTINGS
@@ -53,10 +36,8 @@ CRACK_THRESHOLD = 0.58
 HIT_THRESHOLD   = 0.48
 HIT_K           = 2
 
-
-
 # ==========================
-# LOAD MODEL (ถูกต้องตาม training script)
+# LOAD MODEL
 # ==========================
 @st.cache_resource
 def load_model():
@@ -72,7 +53,7 @@ def load_model():
 model = load_model()
 
 # ==========================
-# TRANSFORM (ต้อง normalize เหมือนตอน train)
+# TRANSFORM
 # ==========================
 transform = transforms.Compose([
     transforms.Resize((300, 300)),
@@ -82,7 +63,7 @@ transform = transforms.Compose([
 ])
 
 # ===============================
-# ULTRA PREMIUM CSS
+# PREMIUM CSS
 # ===============================
 st.markdown("""
 <style>
@@ -206,6 +187,3 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<center style="opacity:0.4;margin-top:60px;">© 2026 Stone AI Inspection</center>', unsafe_allow_html=True)
-
-
-
