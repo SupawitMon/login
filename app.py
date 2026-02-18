@@ -1,4 +1,12 @@
 import streamlit as st
+# ==========================
+# PAGE CONFIG
+# ==========================
+st.set_page_config(
+    page_title="Stone AI Inspection",
+    page_icon="🪨",
+    layout="wide"
+)
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
@@ -30,14 +38,7 @@ CRACK_THRESHOLD = 0.58
 HIT_THRESHOLD   = 0.48
 HIT_K           = 2
 
-# ==========================
-# PAGE CONFIG
-# ==========================
-st.set_page_config(
-    page_title="Stone AI Inspection",
-    page_icon="🪨",
-    layout="wide"
-)
+
 
 # ==========================
 # LOAD MODEL (ถูกต้องตาม training script)
@@ -190,3 +191,4 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<center style="opacity:0.4;margin-top:60px;">© 2026 Stone AI Inspection</center>', unsafe_allow_html=True)
+
