@@ -19,17 +19,32 @@ import requests
 # ==========================
 # MODEL DOWNLOAD CONFIG
 # ==========================
+
 MODEL_PATH = "best_model.pth"
 MODEL_URL = "https://huggingface.co/Mon2948/best_model/resolve/main/best_model.pth"
 
 def download_model():
     with st.spinner("Downloading AI Model (first run only)..."):
-        r = requests.get(MODEL_URL)
+        response = requests.get(MODEL_URL, stream=True)
+        response.raise_for_status()
+
+        total_size = int(response.headers.get("content-length", 0))
+        progress_bar = st.progress(0)
+        downloaded = 0
+
         with open(MODEL_PATH, "wb") as f:
-            f.write(r.content)
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0:
+                        progress_bar.progress(min(downloaded / total_size, 1.0))
+
+        progress_bar.empty()
 
 if not os.path.exists(MODEL_PATH):
     download_model()
+
 
 # ==========================
 # LOCKED SETTINGS
@@ -191,5 +206,6 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<center style="opacity:0.4;margin-top:60px;">© 2026 Stone AI Inspection</center>', unsafe_allow_html=True)
+
 
 
