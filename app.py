@@ -46,6 +46,7 @@ ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"}
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
 # ==========================================
 # Download model if missing
 # ==========================================
@@ -59,6 +60,7 @@ def ensure_model():
         for chunk in r.iter_content(chunk_size=1024 * 1024):
             if chunk:
                 f.write(chunk)
+
 
 # ==========================================
 # LOAD MODEL (checkpoint dict) - cache
@@ -507,7 +509,7 @@ components.html(
       applyTheme();
     </script>
     """,
-    height=72
+    height=78
 )
 
 # เปิด containerCard
@@ -681,36 +683,21 @@ if result is not None and result.get("result_text"):
             unsafe_allow_html=True
         )
 
-    # Images grid (2 กล่อง)
-    st.markdown('<div class="image-grid">', unsafe_allow_html=True)
-
-    # left image
+    # Images grid (สั้น/ชัด ไม่ซ้อน container รก)
     if original_image and os.path.exists(original_image):
-        st.markdown(
-            f"""
-            <div class="image-box">
-              <div class="image-title">ภาพต้นฉบับ</div>
-              <img src="data:image/jpeg;base64," style="display:none;">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        # ใช้ st.image เพื่อให้ streamlit render รูปจริง (คงระบบเดิม)
-        with st.container():
-            st.markdown('<div class="image-box">', unsafe_allow_html=True)
-            st.markdown('<div class="image-title">ภาพต้นฉบับ</div>', unsafe_allow_html=True)
-            st.image(original_image, width=340)
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="image-grid">', unsafe_allow_html=True)
 
-    # right image
-    if original_image and os.path.exists(original_image):
-        with st.container():
-            st.markdown('<div class="image-box">', unsafe_allow_html=True)
-            st.markdown('<div class="image-title">ผลการตรวจจับ</div>', unsafe_allow_html=True)
-            st.image(original_image, width=340)
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="image-box">', unsafe_allow_html=True)
+        st.markdown('<div class="image-title">ภาพต้นฉบับ</div>', unsafe_allow_html=True)
+        st.image(original_image, width=340)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="image-box">', unsafe_allow_html=True)
+        st.markdown('<div class="image-title">ผลการตรวจจับ</div>', unsafe_allow_html=True)
+        st.image(original_image, width=340)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # AI Panel
     st.markdown('<div class="ai-panel">', unsafe_allow_html=True)
@@ -745,5 +732,5 @@ if result is not None and result.get("result_text"):
 # footer
 st.markdown('<div class="footer">© 2026 Stone AI Inspection | Advanced Vision Technology</div>', unsafe_allow_html=True)
 
-# ปิด containerCard
+# ปิด containerCard (สำคัญ: ต้องปิดท้ายสุด)
 st.markdown('</div>', unsafe_allow_html=True)
