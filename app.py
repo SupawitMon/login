@@ -226,16 +226,143 @@ st.set_page_config(page_title="Stone AI Inspection", layout="wide")
 
 st.markdown(
     """
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-    .bigTitle{font-size:34px;font-weight:800;margin-bottom:4px;}
-    .subTitle{opacity:0.8;margin-bottom:18px;}
-    .badge{
-        display:inline-block;padding:14px 22px;border-radius:999px;
-        font-weight:700;border:1px solid rgba(255,255,255,0.25);
+    /* hide streamlit chrome */
+    #MainMenu {visibility:hidden;}
+    header {visibility:hidden;}
+    footer {visibility:hidden;}
+    [data-testid="stToolbar"] {visibility:hidden;}
+    .block-container{padding-top:1rem; padding-bottom:2.5rem; max-width:1100px;}
+
+    :root{
+      --bg:#0b1423;
+      --card:rgba(255,255,255,0.06);
+      --text:#ffffff;
+      --accent1:#00bfff;
+      --accent2:#00ffcc;
+      --success:#00e676;
+      --danger:#ff5252;
+      --warning:#ff9800;
     }
-    .success{color:#16a34a;border-color:#16a34a;}
-    .danger{color:#dc2626;border-color:#dc2626;}
-    .warning{color:#f59e0b;border-color:#f59e0b;}
+
+    html, body, [data-testid="stAppViewContainer"]{
+      background:var(--bg) !important;
+      color:var(--text) !important;
+      font-family:'Inter', sans-serif !important;
+    }
+
+    /* grid background */
+    [data-testid="stAppViewContainer"]::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size:40px 40px;
+      animation:moveGrid 25s linear infinite;
+      z-index:-2;
+      pointer-events:none;
+    }
+    @keyframes moveGrid{from{background-position:0 0;}to{background-position:120px 120px;}}
+
+    /* container card */
+    .containerCard{
+      margin: 18px auto 0 auto;
+      padding: 28px 28px;
+      border-radius: 22px;
+      background: var(--card);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 0 40px rgba(0,255,255,0.05);
+    }
+
+    /* title */
+    .title{
+      text-align:center;
+      font-family:'Orbitron', sans-serif;
+      font-size:42px;
+      margin: 6px 0 0 0;
+    }
+    .ai{
+      background:linear-gradient(270deg,var(--accent1),var(--accent2),#8b5cf6,var(--accent1));
+      background-size:600% 600%;
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      animation:gradientFlow 6s ease infinite;
+    }
+    @keyframes gradientFlow{
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
+    }
+    .subtitle{
+      text-align:center;
+      margin:12px auto 22px auto;
+      font-size:15px;
+      opacity:0.85;
+      max-width:720px;
+    }
+
+    /* buttons */
+    .stButton>button{
+      padding:12px 18px !important;
+      border:none !important;
+      border-radius:12px !important;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2)) !important;
+      color:white !important;
+      transition:0.25s !important;
+      width:100%;
+      font-weight:600;
+    }
+    .stButton>button:hover{
+      transform:scale(1.02);
+      box-shadow:0 0 16px rgba(0,255,255,0.25);
+    }
+
+    /* file uploader */
+    [data-testid="stFileUploaderDropzone"]{
+      border:2px dashed var(--accent1) !important;
+      border-radius:14px !important;
+      background:transparent !important;
+      padding:18px !important;
+    }
+    [data-testid="stFileUploaderDropzone"] *{color:var(--text) !important;}
+    [data-testid="stFileUploaderDropzone"] svg{opacity:.9;}
+
+    /* expander */
+    [data-testid="stExpander"]{
+      border:1px solid rgba(255,255,255,0.08) !important;
+      border-radius:14px !important;
+      background:rgba(255,255,255,0.03) !important;
+    }
+
+    /* progress bar */
+    [data-testid="stProgress"] > div{
+      border-radius:20px !important;
+      overflow:hidden !important;
+      background:rgba(255,255,255,0.08) !important;
+    }
+
+    /* metric cards */
+    [data-testid="stMetric"]{
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 14px 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    /* images */
+    img{
+      border-radius: 16px !important;
+    }
+
+    /* caption */
+    .stCaption{
+      opacity: .65;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -430,3 +557,4 @@ if result is not None and result.get("result_text"):
             st.metric("AI Confidence", f"{confidence:.2f}%")
 
 st.caption("© 2026 Stone AI Inspection | Advanced Vision Technology")
+
