@@ -639,23 +639,27 @@ with st.sidebar:
 st.markdown('<div class="glass">', unsafe_allow_html=True)
 
 # --- Upload + Buttons row
-topL, topR, topRR = st.columns([1.6, 1, 1])
+# ============================================================
+# Upload Section 
 
-with topL:
+center_col = st.columns([1, 2, 1])[1]
+
+with center_col:
     uploaded = st.file_uploader(
         "อัปโหลดรูปหิน (รองรับ: jpg / png / webp / bmp / gif*)",
         type=["jpg", "jpeg", "png", "webp", "bmp", "gif"],
         help="*GIF อัปได้ แต่ระบบจะตอบว่ายังไม่รองรับตามสเปคที่ตั้งไว้"
     )
-    st.markdown('<div class="small-muted">Tip: รูปชัด แสงพอดี จะผ่าน Stone Gate ง่ายขึ้น</div>', unsafe_allow_html=True)
 
-with topR:
+    st.markdown(
+        '<div class="small-muted" style="text-align:center;">Tip: รูปชัด แสงพอดี จะผ่าน Stone Gate ง่ายขึ้น</div>',
+        unsafe_allow_html=True
+    )
+
     run_btn = st.button(" ตรวจสอบคุณภาพ", use_container_width=True)
 
-with topRR:
-    rescan_btn = st.button(" Scan อีกครั้ง", use_container_width=True)
-
 st.markdown('<div class="hr"></div>', unsafe_allow_html=True)
+
 
 
 # ============================================================
@@ -849,6 +853,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ============================================================
 
 st.markdown('<div class="footer">© 2026 Stone AI Inspection | AI Vision Technology</div>', unsafe_allow_html=True)
+
 
 
 
