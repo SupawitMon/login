@@ -19,22 +19,28 @@ import requests
 # ==========================================
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# ---- Model download (Hugging Face) ----
 MODEL_PATH = "best_model.pth"
 HF_MODEL_URL = "https://huggingface.co/Mon2948/best_model/resolve/main/best_model.pth?download=true"
 
 UPLOAD_FOLDER = "static/uploads"
 
-CRACK_THRESHOLD = 0.58
-HIT_THRESHOLD   = 0.48
-HIT_K           = 2
+# ---- LOCKED BEST SETTINGS (ของม่อน) ----
+CRACK_THRESHOLD = 0.58   # ด่านหลัก: crack_max >= 0.58 -> แตก
+HIT_THRESHOLD   = 0.48   # ด่านรอง: ต่อ crop
+HIT_K           = 2      # ต้องเจออย่างน้อย 2 crop ถึงถือว่าแตก
 
+# ---- Multi-crop ----
 USE_MULTI_CROP = True
 CROP_RATIO = 0.75
 USE_9_CROP = True
 
-STONE_LAP_MIN  = 90.0
-STONE_EDGE_MIN = 0.015
+# ---- Stone gate (OpenCV) ----
+STONE_LAP_MIN  = 90.0     # 80-140
+STONE_EDGE_MIN = 0.015    # 0.01-0.03
 
+# ---- Allowed extensions ----
+# NOTE: อนุญาต gif ให้ "อัปได้" แต่จะตอบว่า "ยังไม่รองรับ GIF" ตามที่ม่อนต้องการ
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"}
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -62,12 +68,14 @@ def ensure_model():
 def load_model_and_meta():
     ensure_model()
 
+    # ให้ torch load numpy scalar ได้เหมือนของเดิม (แต่ต้องกันกรณี torch ไม่มี API นี้)
     try:
         if hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals"):
             torch.serialization.add_safe_globals([np.core.multiarray.scalar])
     except Exception:
         pass
 
+    # รองรับ torch ที่ไม่มี weights_only
     try:
         ckpt = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False)
     except TypeError:
@@ -121,7 +129,7 @@ def is_stone_cv(bgr_img):
 
 
 def stone_confidence(lap_var, edge_density):
-    lap_score  = min(1.0, max(0.0, (lap_var - STONE_LAP_MIN) / (STONE_LAP_MIN * 0.8)))
+    lap_score = min(1.0, max(0.0, (lap_var - STONE_LAP_MIN) / (STONE_LAP_MIN * 0.8)))
     edge_score = min(1.0, max(0.0, (edge_density - STONE_EDGE_MIN) / (STONE_EDGE_MIN * 1.0)))
     conf = (0.6 * lap_score + 0.4 * edge_score) * 100.0
     return round(conf, 2)
@@ -140,9 +148,11 @@ def save_upload_bytes(filename: str, file_bytes: bytes):
     if not ok:
         return None, None, "BAD_EXT"
 
+    # ถ้าเป็น gif -> รับไฟล์ได้ แต่ให้ขึ้นข้อความเฉพาะ
     if ext == ".gif":
         return None, None, "GIF_NOT_ALLOWED"
 
+    # กันชื่อซ้ำ + บังคับนามสกุลให้เป็นรูปทั่วไป
     ext = ext if ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp"] else ".jpg"
 
     unique_name = f"{uuid.uuid4().hex}{ext}"
@@ -182,15 +192,15 @@ def predict_image_ai(pil_img: Image.Image, model, transform, crack_idx, no_crack
         crop_box(W - crop_size, 0),
         crop_box(0, H - crop_size),
         crop_box(W - crop_size, H - crop_size),
-        crop_box((W - crop_size)//2, (H - crop_size)//2),
+        crop_box((W - crop_size) // 2, (H - crop_size) // 2),
     ]
 
     if USE_9_CROP:
         boxes += [
-            crop_box((W - crop_size)//2, 0),
-            crop_box((W - crop_size)//2, H - crop_size),
-            crop_box(0, (H - crop_size)//2),
-            crop_box(W - crop_size, (H - crop_size)//2),
+            crop_box((W - crop_size) // 2, 0),
+            crop_box((W - crop_size) // 2, H - crop_size),
+            crop_box(0, (H - crop_size) // 2),
+            crop_box(W - crop_size, (H - crop_size) // 2),
         ]
 
     crack_probs = []
@@ -211,172 +221,45 @@ def decide_crack(crack_max, crack_probs):
 
 
 # ===============================
-# UI (แต่งเว็บอย่างเดียว)
+# Streamlit UI
 # ===============================
 st.set_page_config(page_title="Stone AI Inspection", layout="wide")
 
-# ซ่อน UI streamlit
 st.markdown(
     """
     <style>
-    #MainMenu{visibility:hidden;}
-    header{visibility:hidden;}
-    footer{visibility:hidden;}
-    .block-container{padding-top:.75rem; padding-bottom:2.5rem; max-width:1100px;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# IMPORTANT: CSS ต้องอยู่ใน <style> เท่านั้น ไม่งั้นจะโชว์เป็นตัวหนังสือ
-st.markdown(
-    """
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-    :root{
-      --bg:#0b1423;
-      --card:rgba(255,255,255,0.05);
-      --text:white;
-      --accent1:#00bfff;
-      --accent2:#00ffcc;
-      --success:#00e676;
-      --danger:#ff5252;
-      --warning:#ff9800;
-    }
-
-    html, body, [data-testid="stAppViewContainer"]{
-      background: var(--bg) !important;
-      color: var(--text) !important;
-      font-family: 'Inter', sans-serif !important;
-    }
-
-    /* grid background */
-    [data-testid="stAppViewContainer"]::before{
-      content:"";
-      position:fixed;
-      inset:0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-      background-size:40px 40px;
-      animation:moveGrid 25s linear infinite;
-      z-index:-2;
-      pointer-events:none;
-    }
-    @keyframes moveGrid{ from{background-position:0 0;} to{background-position:120px 120px;} }
-
-    .topbar{
-      display:flex; justify-content:space-between; align-items:center;
-      padding:18px 22px; background:var(--card);
-      backdrop-filter:blur(15px);
-      border-radius:14px; margin-top:12px;
-      border:1px solid rgba(255,255,255,0.06);
-    }
-    .brand{font-weight:800;}
-    .status{display:flex;align-items:center;gap:8px;font-size:13px;opacity:.9;}
-    .dot{width:8px;height:8px;border-radius:50%; background:var(--accent2); box-shadow:0 0 10px var(--accent2); animation:pulse 2s infinite;}
-    @keyframes pulse{0%{opacity:.5}50%{opacity:1}100%{opacity:.5}}
-
-    .containerCard{
-      margin: 26px auto 0 auto;
-      padding: 42px 34px;
-      border-radius: 25px;
-      background: var(--card);
-      backdrop-filter: blur(25px);
-      box-shadow: 0 0 40px rgba(0,255,255,0.05);
-      border:1px solid rgba(255,255,255,0.06);
-    }
-
-    .title{ text-align:center; font-family:'Orbitron',sans-serif; font-size:42px; }
-    .ai{
-      background:linear-gradient(270deg,var(--accent1),var(--accent2),#8b5cf6,var(--accent1));
-      background-size:600% 600%;
-      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-      animation:gradientFlow 6s ease infinite;
-    }
-    @keyframes gradientFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-
-    .subtitle{ text-align:center; margin:15px auto 25px auto; font-size:16px; opacity:0.85; max-width:700px; }
-
-    /* buttons */
-    .stButton>button{
-      padding:12px 25px !important;
-      border:none !important;
-      border-radius:10px !important;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2)) !important;
-      color:white !important;
-      transition:.3s !important;
-      width:100%;
-    }
-    .stButton>button:hover{ transform:scale(1.03); box-shadow:0 0 15px var(--accent1); }
-
-    /* file uploader */
-    [data-testid="stFileUploaderDropzone"]{
-      border:2px dashed var(--accent1) !important;
-      border-radius:12px !important;
-      background:transparent !important;
-      padding:18px !important;
-    }
-    [data-testid="stFileUploaderDropzone"] *{color:var(--text) !important;}
-    [data-testid="stFileUploaderDropzone"] svg{opacity:.9;}
-
-    /* badge */
+    .bigTitle{font-size:34px;font-weight:800;margin-bottom:4px;}
+    .subTitle{opacity:0.8;margin-bottom:18px;}
     .badge{
-      padding:20px 35px; border-radius:50px; margin-top:20px;
-      display:inline-block; font-weight:600; text-align:center;
-      border:1px solid rgba(255,255,255,0.12);
+        display:inline-block;padding:14px 22px;border-radius:999px;
+        font-weight:700;border:1px solid rgba(255,255,255,0.25);
     }
-    .success{border-color:var(--success);color:var(--success);}
-    .danger{border-color:var(--danger);color:var(--danger);}
-    .warning{border-color:var(--warning);color:var(--warning);}
-
-    /* progress rounder */
-    [data-testid="stProgress"] > div{
-      border-radius: 20px !important;
-      overflow:hidden !important;
-      background: rgba(255,255,255,0.08) !important;
-    }
-
-    /* metrics card look */
-    [data-testid="stMetric"]{
-      background: var(--card);
-      border:1px solid rgba(255,255,255,0.06);
-      padding: 14px 16px;
-      border-radius: 15px;
-      backdrop-filter: blur(10px);
-    }
-
-    .footer{ text-align:center; margin-top:45px; opacity:.6; font-size:13px; }
+    .success{color:#16a34a;border-color:#16a34a;}
+    .danger{color:#dc2626;border-color:#dc2626;}
+    .warning{color:#f59e0b;border-color:#f59e0b;}
     </style>
     """,
     unsafe_allow_html=True
 )
-
-# Topbar
-st.markdown(
-    """
-    <div class="topbar">
-      <div class="brand"><b>Stone <span class="ai">AI</span> Inspection</b></div>
-      <div class="status"><div class="dot"></div> AI Online</div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-# เปิดการ์ดหลัก
-st.markdown('<div class="containerCard">', unsafe_allow_html=True)
 
 # โหลดโมเดล
 with st.spinner("Loading model..."):
     model, class_to_idx, crack_idx, no_crack_idx, IMG_SIZE, transform = load_model_and_meta()
 
+# state เก็บรูปล่าสุด (เหมือน last_uploaded_path)
 if "last_uploaded_path" not in st.session_state:
     st.session_state.last_uploaded_path = None
 if "last_unique_name" not in st.session_state:
     st.session_state.last_unique_name = None
 
-st.markdown('<div class="title">Stone Defect Detection <span class="ai">AI</span></div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">ระบบตรวจสอบคุณภาพของหินด้วยเทคโนโลยี AI Vision</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="bigTitle">Stone Defect Detection <span style="color:#06b6d4;">AI</span></div>',
+    unsafe_allow_html=True
+)
+st.markdown(
+    '<div class="subTitle">ระบบตรวจสอบคุณภาพของหินด้วยเทคโนโลยี AI Vision</div>',
+    unsafe_allow_html=True
+)
 
 with st.expander("Debug/Config", expanded=False):
     st.write("Using device:", str(DEVICE))
@@ -386,15 +269,19 @@ with st.expander("Debug/Config", expanded=False):
     st.write("STONE_LAP_MIN:", STONE_LAP_MIN, "| STONE_EDGE_MIN:", STONE_EDGE_MIN)
 
 colL, colR = st.columns([1, 1])
+
 with colL:
     uploaded = st.file_uploader("อัปโหลดรูปหิน", type=["jpg", "jpeg", "png", "webp", "bmp", "gif"])
     run_btn = st.button("ตรวจสอบคุณภาพ", use_container_width=True)
+
 with colR:
     rescan_btn = st.button("Scan อีกครั้ง", use_container_width=True)
+
 
 def run_scan_from_path(file_path: str):
     start_time = time.time()
 
+    # ---- CV gate ----
     bgr = cv2.imread(file_path)
     if bgr is None:
         return {
@@ -420,6 +307,7 @@ def run_scan_from_path(file_path: str):
             "file_path": file_path,
         }
 
+    # ---- AI crack ----
     pil_img = Image.open(file_path).convert("RGB")
     crack_max, no_crack_max, crack_probs = predict_image_ai(pil_img, model, transform, crack_idx, no_crack_idx)
     is_crack, crack_hits = decide_crack(crack_max, crack_probs)
@@ -440,9 +328,11 @@ def run_scan_from_path(file_path: str):
         "crack_probs": crack_probs,
     }
 
+
 result = None
 original_image = None
 
+# ---- กดตรวจสอบคุณภาพ (เหมือน POST /) ----
 if run_btn:
     if uploaded is None:
         st.warning("กรุณาอัปโหลดรูปก่อน")
@@ -450,6 +340,7 @@ if run_btn:
         file_bytes = uploaded.getvalue()
         file_path, unique_name, status = save_upload_bytes(uploaded.name, file_bytes)
 
+        # ---- handle upload status ----
         start_time = time.time()
         processing_time = round(time.time() - start_time, 3)
 
@@ -485,6 +376,7 @@ if run_btn:
             original_image = file_path
             result = run_scan_from_path(file_path)
 
+# ---- กด Scan อีกครั้ง (เหมือน POST /rescan) ----
 if rescan_btn:
     if not st.session_state.last_uploaded_path or not os.path.exists(st.session_state.last_uploaded_path):
         st.warning("ยังไม่มีรูปสำหรับสแกนซ้ำ")
@@ -492,6 +384,7 @@ if rescan_btn:
         original_image = st.session_state.last_uploaded_path
         result = run_scan_from_path(st.session_state.last_uploaded_path)
 
+# ---- Render result ----
 if result is not None and result.get("result_text"):
     crack = bool(result.get("crack", False))
     result_text = result["result_text"]
@@ -505,16 +398,16 @@ if result is not None and result.get("result_text"):
         badge_class = "success"
 
     st.markdown(
-        f'<div style="text-align:center;">'
         f'<div class="badge {badge_class}">{result_text}'
         + (f"<br>ความมั่นใจ {confidence:.2f}%" if confidence is not None else "")
-        + "</div></div>",
+        + "</div>",
         unsafe_allow_html=True
     )
 
     if confidence is not None:
         st.progress(min(max(confidence / 100.0, 0.0), 1.0))
 
+    # Images
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("ภาพต้นฉบับ")
@@ -525,16 +418,14 @@ if result is not None and result.get("result_text"):
         if original_image and os.path.exists(original_image):
             st.image(original_image, use_container_width=True)
 
+    # AI Panel (เหมือนการ์ดเดิม)
     a1, a2, a3 = st.columns(3)
     with a1:
         st.metric("Crack Count", result.get("crack_count", 0))
     with a2:
-        st.metric("Processing Time", f'{result.get("processing_time", 0):.3f}s')
+        st.metric("Processing Time", f"{result.get('processing_time', 0):.3f}s")
     with a3:
         if confidence is not None:
             st.metric("AI Confidence", f"{confidence:.2f}%")
 
-st.markdown('<div class="footer">© 2026 Stone AI Inspection | Advanced Vision Technology</div>', unsafe_allow_html=True)
-
-# ปิดการ์ดหลัก
-st.markdown("</div>", unsafe_allow_html=True)
+st.caption("© 2026 Stone AI Inspection | Advanced Vision Technology")
