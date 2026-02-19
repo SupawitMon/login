@@ -638,7 +638,7 @@ with st.sidebar:
 
 st.markdown('<div class="glass">', unsafe_allow_html=True)
 
-# --- Upload + Buttons row
+
 # ============================================================
 # Upload Section 
 
@@ -765,7 +765,7 @@ if to_show is not None:
             img_path = st.session_state.last_uploaded_path
 
         if img_path:
-            st.image(img_path, use_container_width=True)
+            st.image(img_path, width=520)
         else:
             st.info("ยังไม่มีภาพให้แสดง (หรือเป็น GIF/ไฟล์ไม่ถูกต้อง)")
 
@@ -846,6 +846,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ============================================================
 
 st.markdown('<div class="footer">© 2026 Stone AI Inspection | AI Vision Technology</div>', unsafe_allow_html=True)
+
 
 
 
