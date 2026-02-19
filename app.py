@@ -588,7 +588,7 @@ def metric_card(title: str, value: str):
 
 st.markdown('<div class="title">Stone Defect Detection AI</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="subtitle"><span class="online-dot"></span>AI System Online • CV Gate + EfficientNet-B3 • Multi-Crop</div>',
+    '<div class="subtitle"><span class="online-dot"></span>AI System Online • ระบบตรวจสอบคุณภาพของหินด้วย AI Vision</div>',
     unsafe_allow_html=True
 )
 
@@ -860,6 +860,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ============================================================
 
 st.markdown('<div class="footer">© 2026 Stone AI Inspection | Ultra AI Vision Lab</div>', unsafe_allow_html=True)
+
 
 
 
