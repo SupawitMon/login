@@ -728,13 +728,6 @@ if run_btn:
             with st.spinner("🔍 AI Scanning..."):
                 result = run_scan_from_path(file_path, model, transform, crack_idx, no_crack_idx)
 
-if rescan_btn:
-    if not st.session_state.last_uploaded_path or not os.path.exists(st.session_state.last_uploaded_path):
-        st.warning("ยังไม่มีรูปสำหรับสแกนซ้ำ")
-    else:
-        original_image_path = st.session_state.last_uploaded_path
-        with st.spinner(" Re-scanning..."):
-            result = run_scan_from_path(st.session_state.last_uploaded_path, model, transform, crack_idx, no_crack_idx)
 
 # persist last result
 if result is not None:
@@ -853,6 +846,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ============================================================
 
 st.markdown('<div class="footer">© 2026 Stone AI Inspection | AI Vision Technology</div>', unsafe_allow_html=True)
+
 
 
 
