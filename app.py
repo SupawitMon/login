@@ -1,16 +1,5 @@
 # ============================================================
 # Stone Defect Detection AI (Merged + UI Tweaks by Mon)
-# - System: CV Gate + EfficientNet-B3 + Multi-crop + thresholds (from code #1)
-# - UI/UX: Ultra Premium Glass + Neon Ring + Cards (from code #2)
-#
-# CHANGELOG (ตามที่ม่อนขอ):
-# 1) วง % (confidence ring) ย้ายไปอยู่ "ล่าง" ป้ายผล (พบรอยแตก/ไม่พบรอยแตก)
-# 2) ป้ายผล "พบรอยแตก" ไม่แสดง Crack hits (multi-crop) อีก
-# 3) ข้อความสรุป: เหลือแค่ "ตรวจพบรอยแตก" / "ไม่พบรอยแตก" (ไม่เอาวงเล็บ)
-# 4) แถบการ์ดล่าง: เหลือ 3 การ์ดเท่านั้น: Crack Count / AI Confidence / Processing Time
-#    - ไม่แสดงคำอธิบายย่อยใต้การ์ด
-# 5) ตัดการ์ด Stone Gate ออก
-# ============================================================
 
 import os
 import time
@@ -42,7 +31,7 @@ HF_MODEL_URL = "https://huggingface.co/Mon2948/best_model/resolve/main/best_mode
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# ---- LOCKED BEST SETTINGS (ของม่อน) ----
+# ---- LOCKED BEST SETTINGS  ----
 CRACK_THRESHOLD = 0.58  # crack_max >= 0.58 -> แตก
 HIT_THRESHOLD = 0.48    # ต่อ crop
 HIT_K = 2               # ต้องเจออย่างน้อย 2 crop ถึงถือว่าแตก
@@ -661,10 +650,10 @@ with topL:
     st.markdown('<div class="small-muted">Tip: รูปชัด แสงพอดี จะผ่าน Stone Gate ง่ายขึ้น</div>', unsafe_allow_html=True)
 
 with topR:
-    run_btn = st.button("🚀 ตรวจสอบคุณภาพ", use_container_width=True)
+    run_btn = st.button(" ตรวจสอบคุณภาพ", use_container_width=True)
 
 with topRR:
-    rescan_btn = st.button("🔁 Scan อีกครั้ง", use_container_width=True)
+    rescan_btn = st.button(" Scan อีกครั้ง", use_container_width=True)
 
 st.markdown('<div class="hr"></div>', unsafe_allow_html=True)
 
@@ -740,7 +729,7 @@ if rescan_btn:
         st.warning("ยังไม่มีรูปสำหรับสแกนซ้ำ")
     else:
         original_image_path = st.session_state.last_uploaded_path
-        with st.spinner("🔁 Re-scanning..."):
+        with st.spinner(" Re-scanning..."):
             result = run_scan_from_path(st.session_state.last_uploaded_path, model, transform, crack_idx, no_crack_idx)
 
 # persist last result
@@ -770,7 +759,7 @@ if to_show is not None:
     left, right = st.columns([1.15, 1])
 
     with left:
-        st.markdown('<div class="panel-title">🖼️ ภาพต้นฉบับ</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title"> ภาพต้นฉบับ</div>', unsafe_allow_html=True)
 
         img_path = None
         if original_image_path and os.path.exists(original_image_path):
@@ -784,7 +773,7 @@ if to_show is not None:
             st.info("ยังไม่มีภาพให้แสดง (หรือเป็น GIF/ไฟล์ไม่ถูกต้อง)")
 
     with right:
-        st.markdown('<div class="panel-title">📊 ผลการตรวจจับ</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title"> ผลการตรวจจับ</div>', unsafe_allow_html=True)
 
     # 1) ป้ายผล (badge)
         st.markdown(badge_html(result_text, status), unsafe_allow_html=True)
@@ -804,14 +793,14 @@ if to_show is not None:
         else:
             st.warning("ไม่สามารถประมวลผลภาพได้")
 
-    # 4) วงเปอร์เซ็นต์อยู่ล่างสุดเลย
+    
         st.markdown(ring_html(confidence, status), unsafe_allow_html=True)
 
 
 
     st.markdown('<div class="hr"></div>', unsafe_allow_html=True)
 
-    # ✅ Metrics row: เหลือ 3 การ์ดเท่านั้น และไม่มีข้อความย่อย
+    
     m1, m2, m3 = st.columns([1, 1, 1])
 
     with m1:
@@ -826,7 +815,7 @@ if to_show is not None:
     # Optional Debug details
     if show_debug:
         st.markdown('<div class="hr"></div>', unsafe_allow_html=True)
-        st.markdown("### 🧪 Debug Details")
+        st.markdown("###  Debug Details")
 
         cA, cB = st.columns([1, 1])
         with cA:
@@ -859,7 +848,8 @@ st.markdown('</div>', unsafe_allow_html=True)
 # FOOTER
 # ============================================================
 
-st.markdown('<div class="footer">© 2026 Stone AI Inspection | Ultra AI Vision Lab</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">© 2026 Stone AI Inspection | AI Vision Technology</div>', unsafe_allow_html=True)
+
 
 
 
