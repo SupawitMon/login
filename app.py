@@ -55,8 +55,8 @@ ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"}
 # ============================================================
 
 st.set_page_config(
-    page_title="Stone AI Inspection",
-    page_icon="🪨",
+    page_title="AI Vision Granite",
+    page_icon="🤖",
     layout="wide"
 )
 
@@ -846,6 +846,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ============================================================
 
 st.markdown('<div class="footer">© 2026 Stone AI Inspection | AI Vision Technology</div>', unsafe_allow_html=True)
+
 
 
 
