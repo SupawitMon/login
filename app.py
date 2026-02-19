@@ -224,149 +224,138 @@ def decide_crack(crack_max, crack_probs):
 # ===============================
 st.set_page_config(page_title="Stone AI Inspection", layout="wide")
 
-st.markdown(
-    """
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-    /* hide streamlit chrome */
-    #MainMenu {visibility:hidden;}
-    header {visibility:hidden;}
-    footer {visibility:hidden;}
-    [data-testid="stToolbar"] {visibility:hidden;}
-    .block-container{padding-top:1rem; padding-bottom:2.5rem; max-width:1100px;}
+st.markdown("""
+<style>
+/* ===== GLOBAL ===== */
+html, body, [class*="css"]  {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background: radial-gradient(1200px at 20% 0%, #0b0f14 0%, #05070a 60%);
+    color: #e5e7eb;
+}
 
-    :root{
-      --bg:#0b1423;
-      --card:rgba(255,255,255,0.06);
-      --text:#ffffff;
-      --accent1:#00bfff;
-      --accent2:#00ffcc;
-      --success:#00e676;
-      --danger:#ff5252;
-      --warning:#ff9800;
-    }
+/* ===== REMOVE STREAMLIT NOISE ===== */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
 
-    html, body, [data-testid="stAppViewContainer"]{
-      background:var(--bg) !important;
-      color:var(--text) !important;
-      font-family:'Inter', sans-serif !important;
-    }
+/* ===== TITLE ===== */
+.bigTitle {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    margin-bottom: 6px;
+    background: linear-gradient(90deg, #f8fafc, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
 
-    /* grid background */
-    [data-testid="stAppViewContainer"]::before{
-      content:"";
-      position:fixed;
-      inset:0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-      background-size:40px 40px;
-      animation:moveGrid 25s linear infinite;
-      z-index:-2;
-      pointer-events:none;
-    }
-    @keyframes moveGrid{from{background-position:0 0;}to{background-position:120px 120px;}}
+.subTitle {
+    font-size: 15px;
+    opacity: 0.65;
+    margin-bottom: 28px;
+}
 
-    /* container card */
-    .containerCard{
-      margin: 18px auto 0 auto;
-      padding: 28px 28px;
-      border-radius: 22px;
-      background: var(--card);
-      backdrop-filter: blur(18px);
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 0 40px rgba(0,255,255,0.05);
-    }
+/* ===== CARD ===== */
+.block-container {
+    padding-top: 2.5rem;
+    max-width: 1300px;
+}
 
-    /* title */
-    .title{
-      text-align:center;
-      font-family:'Orbitron', sans-serif;
-      font-size:42px;
-      margin: 6px 0 0 0;
-    }
-    .ai{
-      background:linear-gradient(270deg,var(--accent1),var(--accent2),#8b5cf6,var(--accent1));
-      background-size:600% 600%;
-      -webkit-background-clip:text;
-      -webkit-text-fill-color:transparent;
-      animation:gradientFlow 6s ease infinite;
-    }
-    @keyframes gradientFlow{
-      0%{background-position:0% 50%;}
-      50%{background-position:100% 50%;}
-      100%{background-position:0% 50%;}
-    }
-    .subtitle{
-      text-align:center;
-      margin:12px auto 22px auto;
-      font-size:15px;
-      opacity:0.85;
-      max-width:720px;
-    }
+/* ===== BADGE ===== */
+.badge {
+    display: inline-block;
+    padding: 18px 28px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 18px;
+    margin-bottom: 12px;
+    backdrop-filter: blur(6px);
+    background: rgba(15, 23, 42, 0.65);
+    box-shadow: 0 20px 40px rgba(0,0,0,.45);
+    border: 1px solid rgba(255,255,255,.08);
+}
 
-    /* buttons */
-    .stButton>button{
-      padding:12px 18px !important;
-      border:none !important;
-      border-radius:12px !important;
-      background:linear-gradient(90deg,var(--accent1),var(--accent2)) !important;
-      color:white !important;
-      transition:0.25s !important;
-      width:100%;
-      font-weight:600;
-    }
-    .stButton>button:hover{
-      transform:scale(1.02);
-      box-shadow:0 0 16px rgba(0,255,255,0.25);
-    }
+.success {
+    color: #22c55e;
+    border-color: rgba(34,197,94,.4);
+}
 
-    /* file uploader */
-    [data-testid="stFileUploaderDropzone"]{
-      border:2px dashed var(--accent1) !important;
-      border-radius:14px !important;
-      background:transparent !important;
-      padding:18px !important;
-    }
-    [data-testid="stFileUploaderDropzone"] *{color:var(--text) !important;}
-    [data-testid="stFileUploaderDropzone"] svg{opacity:.9;}
+.danger {
+    color: #ef4444;
+    border-color: rgba(239,68,68,.45);
+}
 
-    /* expander */
-    [data-testid="stExpander"]{
-      border:1px solid rgba(255,255,255,0.08) !important;
-      border-radius:14px !important;
-      background:rgba(255,255,255,0.03) !important;
-    }
+.warning {
+    color: #f59e0b;
+    border-color: rgba(245,158,11,.45);
+}
 
-    /* progress bar */
-    [data-testid="stProgress"] > div{
-      border-radius:20px !important;
-      overflow:hidden !important;
-      background:rgba(255,255,255,0.08) !important;
-    }
+/* ===== BUTTON ===== */
+.stButton > button {
+    height: 56px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 15px;
+    background: linear-gradient(180deg, #111827, #020617);
+    color: #e5e7eb;
+    border: 1px solid rgba(255,255,255,.12);
+    transition: all .25s ease;
+}
 
-    /* metric cards */
-    [data-testid="stMetric"]{
-      background: var(--card);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 14px 16px;
-      backdrop-filter: blur(12px);
-    }
+.stButton > button:hover {
+    transform: translateY(-1px);
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 1px rgba(56,189,248,.25),
+                0 20px 40px rgba(0,0,0,.55);
+}
 
-    /* images */
-    img{
-      border-radius: 16px !important;
-    }
+/* ===== FILE UPLOADER ===== */
+.stFileUploader {
+    border-radius: 18px;
+    background: rgba(2,6,23,.6);
+    border: 1px dashed rgba(148,163,184,.25);
+    padding: 18px;
+}
 
-    /* caption */
-    .stCaption{
-      opacity: .65;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+/* ===== IMAGE ===== */
+img {
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0,0,0,.6);
+}
+
+/* ===== METRIC ===== */
+[data-testid="stMetric"] {
+    background: linear-gradient(180deg, rgba(2,6,23,.7), rgba(2,6,23,.4));
+    border-radius: 16px;
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+}
+
+/* ===== PROGRESS ===== */
+.stProgress > div > div {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    border-radius: 999px;
+}
+
+/* ===== EXPANDER ===== */
+details {
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(2,6,23,.6);
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: #1f2937;
+    border-radius: 8px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # โหลดโมเดล
 with st.spinner("Loading model..."):
@@ -557,4 +546,5 @@ if result is not None and result.get("result_text"):
             st.metric("AI Confidence", f"{confidence:.2f}%")
 
 st.caption("© 2026 Stone AI Inspection | Advanced Vision Technology")
+
 
