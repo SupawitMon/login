@@ -26,9 +26,9 @@ HF_MODEL_URL = "https://huggingface.co/Mon2948/best_model/resolve/main/best_mode
 UPLOAD_FOLDER = "static/uploads"
 
 # ---- LOCKED BEST SETTINGS (ของม่อน) ----
-CRACK_THRESHOLD = 0.58   # ด่านหลัก: crack_max >= 0.58 -> แตก
-HIT_THRESHOLD   = 0.48   # ด่านรอง: ต่อ crop
-HIT_K           = 2      # ต้องเจออย่างน้อย 2 crop ถึงถือว่าแตก
+CRACK_THRESHOLD = 0.58  # ด่านหลัก: crack_max >= 0.58 -> แตก
+HIT_THRESHOLD = 0.48    # ด่านรอง: ต่อ crop
+HIT_K = 2               # ต้องเจออย่างน้อย 2 crop ถึงถือว่าแตก
 
 # ---- Multi-crop ----
 USE_MULTI_CROP = True
@@ -36,8 +36,8 @@ CROP_RATIO = 0.75
 USE_9_CROP = True
 
 # ---- Stone gate (OpenCV) ----
-STONE_LAP_MIN  = 90.0     # 80-140
-STONE_EDGE_MIN = 0.015    # 0.01-0.03
+STONE_LAP_MIN = 90.0     # 80-140
+STONE_EDGE_MIN = 0.015   # 0.01-0.03
 
 # ---- Allowed extensions ----
 # NOTE: อนุญาต gif ให้ "อัปได้" แต่จะตอบว่า "ยังไม่รองรับ GIF" ตามที่ม่อนต้องการ
@@ -101,7 +101,6 @@ def load_model_and_meta():
     no_crack_idx = class_to_idx[NOCRACK_NAME]
 
     IMG_SIZE = int(ckpt.get("img_size", 300)) if isinstance(ckpt, dict) else 300
-
     transform = transforms.Compose([
         transforms.Resize((IMG_SIZE, IMG_SIZE)),
         transforms.ToTensor(),
@@ -309,7 +308,9 @@ def run_scan_from_path(file_path: str):
 
     # ---- AI crack ----
     pil_img = Image.open(file_path).convert("RGB")
-    crack_max, no_crack_max, crack_probs = predict_image_ai(pil_img, model, transform, crack_idx, no_crack_idx)
+    crack_max, no_crack_max, crack_probs = predict_image_ai(
+        pil_img, model, transform, crack_idx, no_crack_idx
+    )
     is_crack, crack_hits = decide_crack(crack_max, crack_probs)
 
     crack = bool(is_crack)
