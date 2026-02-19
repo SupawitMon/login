@@ -1,7 +1,15 @@
 # ============================================================
-# Stone Defect Detection AI (Merged)
-# - System: from Code #1 (CV Gate + EfficientNet-B3 + Multi-crop + thresholds)
-# - UI/UX: from Code #2 (Ultra Premium CSS + Glass UI + Neon Ring + Cards)
+# Stone Defect Detection AI (Merged + UI Tweaks by Mon)
+# - System: CV Gate + EfficientNet-B3 + Multi-crop + thresholds (from code #1)
+# - UI/UX: Ultra Premium Glass + Neon Ring + Cards (from code #2)
+#
+# CHANGELOG (ตามที่ม่อนขอ):
+# 1) วง % (confidence ring) ย้ายไปอยู่ "ล่าง" ป้ายผล (พบรอยแตก/ไม่พบรอยแตก)
+# 2) ป้ายผล "พบรอยแตก" ไม่แสดง Crack hits (multi-crop) อีก
+# 3) ข้อความสรุป: เหลือแค่ "ตรวจพบรอยแตก" / "ไม่พบรอยแตก" (ไม่เอาวงเล็บ)
+# 4) แถบการ์ดล่าง: เหลือ 3 การ์ดเท่านั้น: Crack Count / AI Confidence / Processing Time
+#    - ไม่แสดงคำอธิบายย่อยใต้การ์ด
+# 5) ตัดการ์ด Stone Gate ออก
 # ============================================================
 
 import os
@@ -19,8 +27,9 @@ from torchvision import models, transforms
 import streamlit as st
 import requests
 
+
 # ============================================================
-# CONFIG (คงเดิม: Logic/Thresholds)
+# CONFIG (Logic/Thresholds)
 # ============================================================
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -51,8 +60,9 @@ STONE_EDGE_MIN = 0.015   # 0.01-0.03
 # NOTE: อนุญาต gif ให้ "อัปได้" แต่จะตอบว่า "ยังไม่รองรับ GIF"
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"}
 
+
 # ============================================================
-# STREAMLIT PAGE CONFIG (Ultra)
+# STREAMLIT PAGE CONFIG
 # ============================================================
 
 st.set_page_config(
@@ -61,8 +71,9 @@ st.set_page_config(
     layout="wide"
 )
 
+
 # ============================================================
-# ULTRA PREMIUM CSS (จากโค้ดสอง + ปรับเพิ่มสำหรับระบบจริง)
+# ULTRA PREMIUM CSS
 # ============================================================
 
 st.markdown(
@@ -179,7 +190,7 @@ section[data-testid="stFileUploaderDropzone"]{
     display:flex;
     align-items:center;
     justify-content:center;
-    margin: 6px 0 8px 0;
+    margin: 10px 0 8px 0;
 }
 .result-ring{
     width: 190px;
@@ -220,21 +231,8 @@ section[data-testid="stFileUploaderDropzone"]{
     color: #fbbf24;
     border-color: rgba(251,191,36,0.7);
 }
-.badge.sub{
-    display:block;
-    margin-top:6px;
-    opacity:0.75;
-    font-weight:600;
-    font-size:13px;
-}
 
 /* Metric Cards */
-.metrics{
-    display:flex;
-    gap: 14px;
-    margin-top: 10px;
-    flex-wrap: wrap;
-}
 .metric-card{
     flex: 1 1 180px;
     min-width: 180px;
@@ -258,11 +256,6 @@ section[data-testid="stFileUploaderDropzone"]{
 .metric-value{
     font-size: 30px;
     font-weight: 900;
-}
-.metric-sub{
-    opacity: 0.62;
-    font-size: 12px;
-    margin-top: 4px;
 }
 
 /* Image panels */
@@ -296,6 +289,7 @@ section[data-testid="stFileUploaderDropzone"]{
     unsafe_allow_html=True
 )
 
+
 # ============================================================
 # MODEL DOWNLOAD
 # ============================================================
@@ -310,6 +304,7 @@ def ensure_model():
         for chunk in r.iter_content(chunk_size=1024 * 1024):
             if chunk:
                 f.write(chunk)
+
 
 # ============================================================
 # LOAD MODEL (checkpoint dict) - cache
@@ -363,8 +358,9 @@ def load_model_and_meta():
 
     return model, class_to_idx, crack_idx, no_crack_idx, IMG_SIZE, transform
 
+
 # ============================================================
-# CV Stone Gate (คงเดิม)
+# CV Stone Gate
 # ============================================================
 
 def is_stone_cv(bgr_img):
@@ -383,8 +379,9 @@ def stone_confidence(lap_var, edge_density):
     conf = (0.6 * lap_score + 0.4 * edge_score) * 100.0
     return round(conf, 2)
 
+
 # ============================================================
-# Upload helpers (คงเดิม)
+# Upload helpers
 # ============================================================
 
 def allowed_file_ext(filename: str):
@@ -411,8 +408,9 @@ def save_upload_bytes(filename: str, file_bytes: bytes):
 
     return file_path, unique_name, "OK"
 
+
 # ============================================================
-# AI Predict (คงเดิม)
+# AI Predict
 # ============================================================
 
 def _predict_probs(pil_img: Image.Image, model, transform, crack_idx, no_crack_idx):
@@ -465,6 +463,7 @@ def decide_crack(crack_max, crack_probs):
     crack_hits = sum(p >= HIT_THRESHOLD for p in crack_probs)
     is_crack = (crack_max >= CRACK_THRESHOLD) or (crack_hits >= HIT_K)
     return is_crack, crack_hits
+
 
 # ============================================================
 # Scan runner (รวม CV + AI)
@@ -543,18 +542,15 @@ def run_scan_from_path(file_path: str, model, transform, crack_idx, no_crack_idx
         "no_crack_max": no_crack_max,
     }
 
+
 # ============================================================
 # UI helper: ring + badge + metrics
 # ============================================================
 
 def ring_html(confidence: float, status: str):
-    # สี ring ให้เข้ากับผล
-    # - CRACK -> แดง/ชมพู
-    # - NOT_STONE -> เหลือง
-    # - NO_CRACK -> เขียวฟ้า
     if status == "CRACK":
         ring_color = "rgba(255,77,109,0.95)"
-    elif status == "NOT_STONE" or status == "GIF" or status == "BAD_IMAGE":
+    elif status in ("NOT_STONE", "GIF", "BAD_IMAGE"):
         ring_color = "rgba(251,191,36,0.95)"
     else:
         ring_color = "rgba(0,255,204,0.95)"
@@ -568,26 +564,23 @@ def ring_html(confidence: float, status: str):
     </div>
     """
 
-def badge_html(result_text: str, status: str, subtext: str = ""):
+def badge_html(result_text: str, status: str):
     if status == "CRACK":
         cls = "bad"
-    elif status == "NOT_STONE" or status == "GIF" or status == "BAD_IMAGE":
+    elif status in ("NOT_STONE", "GIF", "BAD_IMAGE"):
         cls = "warn"
     else:
         cls = "ok"
+    return f'<div class="badge {cls}">{result_text}</div>'
 
-    sub = f'<span class="badge sub">{subtext}</span>' if subtext else ""
-    return f'<div class="badge {cls}">{result_text}{sub}</div>'
-
-def metric_card(title: str, value: str, sub: str = ""):
-    sub_html = f'<div class="metric-sub">{sub}</div>' if sub else ""
+def metric_card(title: str, value: str):
     return f"""
     <div class="metric-card">
       <div class="metric-title">{title}</div>
       <div class="metric-value">{value}</div>
-      {sub_html}
     </div>
     """
+
 
 # ============================================================
 # HEADER
@@ -599,12 +592,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
 # ============================================================
 # LOAD MODEL
 # ============================================================
 
 with st.spinner("🧠 Loading model..."):
     model, class_to_idx, crack_idx, no_crack_idx, IMG_SIZE, transform = load_model_and_meta()
+
 
 # ============================================================
 # SESSION STATE (เก็บรูปไว้ rescan)
@@ -616,6 +611,7 @@ if "last_unique_name" not in st.session_state:
     st.session_state.last_unique_name = None
 if "last_result" not in st.session_state:
     st.session_state.last_result = None
+
 
 # ============================================================
 # SIDEBAR (Debug/Config)
@@ -646,6 +642,7 @@ with st.sidebar:
         st.write("class_to_idx:", class_to_idx)
         st.write("IMG_SIZE:", IMG_SIZE)
 
+
 # ============================================================
 # MAIN GLASS CONTAINER
 # ============================================================
@@ -671,6 +668,7 @@ with topRR:
 
 st.markdown('<div class="hr"></div>', unsafe_allow_html=True)
 
+
 # ============================================================
 # SCAN LOGIC
 # ============================================================
@@ -685,7 +683,7 @@ if run_btn:
         file_bytes = uploaded.getvalue()
         file_path, unique_name, status = save_upload_bytes(uploaded.name, file_bytes)
 
-        # upload handling timing (เหมือนเดิม)
+        # upload handling timing
         t0 = time.time()
         processing_time = round(time.time() - t0, 3)
 
@@ -749,6 +747,7 @@ if rescan_btn:
 if result is not None:
     st.session_state.last_result = result
 
+
 # ============================================================
 # RENDER RESULT (Premium Layout)
 # ============================================================
@@ -762,26 +761,17 @@ if to_show is not None:
     crack = bool(to_show.get("crack", False))
     ptime = float(to_show.get("processing_time", 0) or 0)
 
-    # Subtext (debug-ish but friendly)
+    # Debug values (only show if debug enabled)
     lap_var = to_show.get("lap_var", None)
     edge_density = to_show.get("edge_density", None)
     crack_hits = int(to_show.get("crack_hits", 0) or 0)
 
-    subtext = ""
-    if status == "NOT_STONE":
-        subtext = f"Stone Confidence (CV) ≈ {confidence:.2f}%"
-    elif status == "CRACK":
-        subtext = f"Crack hits (multi-crop) = {crack_hits}"
-    elif status == "NO_CRACK":
-        subtext = f"Crack hits (multi-crop) = {crack_hits}"
-
-    # Top row: Left image + Right ring & status
+    # Top row: Left image + Right status
     left, right = st.columns([1.15, 1])
 
     with left:
         st.markdown('<div class="panel-title">🖼️ ภาพต้นฉบับ</div>', unsafe_allow_html=True)
 
-        # decide image path: last uploaded path if exists
         img_path = None
         if original_image_path and os.path.exists(original_image_path):
             img_path = original_image_path
@@ -796,18 +786,18 @@ if to_show is not None:
     with right:
         st.markdown('<div class="panel-title">📊 ผลการตรวจจับ</div>', unsafe_allow_html=True)
 
-        # ring + badge
+        # ✅ ตามที่ม่อนขอ: Badge ก่อน แล้วค่อย ring (ring อยู่ล่าง)
+        st.markdown(badge_html(result_text, status), unsafe_allow_html=True)
         st.markdown(ring_html(confidence, status), unsafe_allow_html=True)
-        st.markdown(badge_html(result_text, status, subtext=subtext), unsafe_allow_html=True)
 
-        # Progress bar (native)
+        # Progress bar (คงไว้)
         st.progress(max(0.0, min(1.0, confidence / 100.0)))
 
-        # Quick notes
+        # ✅ ข้อความสั้นๆ ไม่เอาวงเล็บ
         if status == "CRACK":
-            st.error("ตรวจพบรอยแตก (ตามเกณฑ์ที่ล็อกไว้)")
+            st.error("ตรวจพบรอยแตก")
         elif status == "NO_CRACK":
-            st.success("ไม่พบรอยแตก (ผ่านเกณฑ์)")
+            st.success("ไม่พบรอยแตก")
         elif status == "NOT_STONE":
             st.warning("ภาพไม่ผ่าน Stone Gate: ระบบมองว่าไม่ใช่หิน")
         elif status == "GIF":
@@ -817,25 +807,17 @@ if to_show is not None:
 
     st.markdown('<div class="hr"></div>', unsafe_allow_html=True)
 
-    # Metrics row (premium cards)
-    m1, m2, m3, m4 = st.columns([1, 1, 1, 1])
+    # ✅ Metrics row: เหลือ 3 การ์ดเท่านั้น และไม่มีข้อความย่อย
+    m1, m2, m3 = st.columns([1, 1, 1])
 
     with m1:
         st.markdown(metric_card("Crack Count", str(to_show.get("crack_count", 0))), unsafe_allow_html=True)
 
     with m2:
-        st.markdown(metric_card("AI Confidence", f"{confidence:.2f}%", "คำนวณจาก max prob"), unsafe_allow_html=True)
+        st.markdown(metric_card("AI Confidence", f"{confidence:.2f}%"), unsafe_allow_html=True)
 
     with m3:
-        st.markdown(metric_card("Processing Time", f"{ptime:.3f}s", "รวม CV + AI"), unsafe_allow_html=True)
-
-    with m4:
-        # Stone Conf: ถ้าเป็น NOT_STONE ใช้ confidence ที่ส่งกลับ (stone_conf)
-        # ถ้าเป็นหิน ให้แสดง stone_conf จาก CV
-        stone_conf_val = to_show.get("stone_conf", None)
-        if stone_conf_val is None:
-            stone_conf_val = 0
-        st.markdown(metric_card("Stone Gate", f"{float(stone_conf_val):.2f}%", "CV confidence"), unsafe_allow_html=True)
+        st.markdown(metric_card("Processing Time", f"{ptime:.3f}s"), unsafe_allow_html=True)
 
     # Optional Debug details
     if show_debug:
@@ -856,16 +838,18 @@ if to_show is not None:
             st.write("STONE_LAP_MIN:", STONE_LAP_MIN)
             st.write("STONE_EDGE_MIN:", STONE_EDGE_MIN)
 
-        # Show crop probs (compact)
         probs = to_show.get("crack_probs", []) or []
         if probs:
             st.write("crack_probs (per crop):")
             st.write([round(float(p), 4) for p in probs])
 
+
 # ============================================================
 # CLOSE GLASS DIV
 # ============================================================
+
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ============================================================
 # FOOTER
