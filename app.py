@@ -783,29 +783,29 @@ if to_show is not None:
         else:
             st.info("ยังไม่มีภาพให้แสดง (หรือเป็น GIF/ไฟล์ไม่ถูกต้อง)")
 
-   with right:
-    st.markdown('<div class="panel-title">📊 ผลการตรวจจับ</div>', unsafe_allow_html=True)
+    with right:
+        st.markdown('<div class="panel-title">📊 ผลการตรวจจับ</div>', unsafe_allow_html=True)
 
     # 1) ป้ายผลก่อน
-    st.markdown(badge_html(result_text, status), unsafe_allow_html=True)
+        st.markdown(badge_html(result_text, status), unsafe_allow_html=True)
 
     # 2) bar สีฟ้า
-    st.progress(max(0.0, min(1.0, confidence / 100.0)))
+        st.progress(max(0.0, min(1.0, confidence / 100.0)))
 
     # 3) วงเปอร์เซ็นต์อยู่ "ล่าง bar"
-    st.markdown(ring_html(confidence, status), unsafe_allow_html=True)
+        st.markdown(ring_html(confidence, status), unsafe_allow_html=True)
 
     # 4) ข้อความสั้นๆ
-    if status == "CRACK":
-        st.error("ตรวจพบรอยแตก")
-    elif status == "NO_CRACK":
-        st.success("ไม่พบรอยแตก")
-    elif status == "NOT_STONE":
-        st.warning("ภาพไม่ผ่าน Stone Gate: ระบบมองว่าไม่ใช่หิน")
-    elif status == "GIF":
-        st.warning("GIF ยังไม่รองรับ — เปลี่ยนเป็น JPG/PNG/WebP ก่อน")
-    else:
-        st.warning("ไม่สามารถประมวลผลภาพได้")
+        if status == "CRACK":
+            st.error("ตรวจพบรอยแตก")
+        elif status == "NO_CRACK":
+            st.success("ไม่พบรอยแตก")
+        elif status == "NOT_STONE":
+            st.warning("ภาพไม่ผ่าน Stone Gate: ระบบมองว่าไม่ใช่หิน")
+        elif status == "GIF":
+            st.warning("GIF ยังไม่รองรับ — เปลี่ยนเป็น JPG/PNG/WebP ก่อน")
+        else:
+            st.warning("ไม่สามารถประมวลผลภาพได้")
 
 
     st.markdown('<div class="hr"></div>', unsafe_allow_html=True)
@@ -859,4 +859,5 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ============================================================
 
 st.markdown('<div class="footer">© 2026 Stone AI Inspection | Ultra AI Vision Lab</div>', unsafe_allow_html=True)
+
 
